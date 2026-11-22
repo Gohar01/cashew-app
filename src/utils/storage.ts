@@ -8,11 +8,11 @@ import {
 } from '../data/defaultData';
 
 const STORAGE_KEYS = {
-  CATEGORIES: 'cashew_categories_v9',
-  WALLETS: 'cashew_wallets_v9',
-  TRANSACTIONS: 'cashew_transactions_v9',
-  BUDGETS: 'cashew_budgets_v9',
-  SETTINGS: 'cashew_settings_v9',
+  CATEGORIES: 'cashew_categories_v10',
+  WALLETS: 'cashew_wallets_v10',
+  TRANSACTIONS: 'cashew_transactions_v10',
+  BUDGETS: 'cashew_budgets_v10',
+  SETTINGS: 'cashew_settings_v10',
 };
 
 export function loadStoredData<T>(key: string, fallback: T): T {

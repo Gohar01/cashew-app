@@ -397,7 +397,7 @@ export const CASHEW_WALLETS: Wallet[] = [
   {
     "id": "wal-habib-metropolitan",
     "name": "Habib Metropolitan",
-    "balance": -64054.97,
+    "balance": 115945.03,
     "currency": "PKR",
     "color": "#0284c7",
     "icon": "Landmark",
@@ -1247,7 +1247,7 @@ export const CASHEW_TRANSACTIONS: Transaction[] = [
     "id": "tx-cashew-5774",
     "title": "Withdrawal Amount from AMMF",
     "amount": 90000,
-    "type": "expense",
+    "type": "income",
     "categoryId": "cat-balance-correction",
     "walletId": "wal-habib-metropolitan",
     "date": "2026-11-20",

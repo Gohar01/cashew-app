@@ -61,9 +61,41 @@ export function App() {
   const handleSaveTransaction = (txData: Partial<Transaction>) => {
     if (txData.id) {
       // Update existing
+      const oldTx = transactions.find((t) => t.id === txData.id);
+      const updatedTx = { ...oldTx, ...txData } as Transaction;
+
       setTransactions((prev) =>
-        prev.map((t) => (t.id === txData.id ? ({ ...t, ...txData } as Transaction) : t))
+        prev.map((t) => (t.id === txData.id ? updatedTx : t))
       );
+
+      // Re-calculate affected wallet balances
+      if (oldTx) {
+        setWallets((prev) =>
+          prev.map((w) => {
+            let b = w.balance;
+
+            // Revert old transaction effect
+            if (w.id === oldTx.walletId) {
+              const oldDelta = oldTx.type === 'income' ? oldTx.amount : -oldTx.amount;
+              b -= oldDelta;
+            }
+            if (oldTx.toWalletId && w.id === oldTx.toWalletId) {
+              b -= oldTx.amount;
+            }
+
+            // Apply new transaction effect
+            if (w.id === updatedTx.walletId) {
+              const newDelta = updatedTx.type === 'income' ? updatedTx.amount : -updatedTx.amount;
+              b += newDelta;
+            }
+            if (updatedTx.toWalletId && w.id === updatedTx.toWalletId) {
+              b += updatedTx.amount;
+            }
+
+            return { ...w, balance: Math.round(b * 100) / 100 };
+          })
+        );
+      }
     } else {
       // Create new
       const newTx: Transaction = {
@@ -87,7 +119,10 @@ export function App() {
         prev.map((w) => {
           if (w.id === newTx.walletId) {
             const delta = newTx.type === 'income' ? newTx.amount : -newTx.amount;
-            return { ...w, balance: w.balance + delta };
+            return { ...w, balance: Math.round((w.balance + delta) * 100) / 100 };
+          }
+          if (newTx.toWalletId && w.id === newTx.toWalletId) {
+            return { ...w, balance: Math.round((w.balance + newTx.amount) * 100) / 100 };
           }
           return w;
         })
@@ -104,7 +139,10 @@ export function App() {
       prev.map((w) => {
         if (w.id === tx.walletId) {
           const delta = tx.type === 'income' ? -tx.amount : tx.amount;
-          return { ...w, balance: w.balance + delta };
+          return { ...w, balance: Math.round((w.balance + delta) * 100) / 100 };
+        }
+        if (tx.toWalletId && w.id === tx.toWalletId) {
+          return { ...w, balance: Math.round((w.balance - tx.amount) * 100) / 100 };
         }
         return w;
       })
