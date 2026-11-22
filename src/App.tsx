@@ -1,6 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ActiveTab, Transaction, Category, Wallet, Budget, AppSettings } from './types';
 import { Storage } from './utils/storage';
+import {
+  fetchAllFromSupabase,
+  dbUpsertTransaction,
+  dbDeleteTransaction,
+  dbUpsertWallets,
+  subscribeToRealtimeChanges,
+} from './utils/supabase';
 import {
   DEFAULT_CATEGORIES,
   DEFAULT_WALLETS,
@@ -57,6 +64,33 @@ export function App() {
     Storage.saveSettings(settings);
   }, [settings]);
 
+  // Sync with Supabase on mount and listen to realtime cross-device changes
+  useEffect(() => {
+    let isMounted = true;
+
+    const syncCloudData = async () => {
+      const cloudData = await fetchAllFromSupabase();
+      if (cloudData && isMounted) {
+        if (cloudData.wallets.length > 0) setWallets(cloudData.wallets);
+        if (cloudData.categories.length > 0) setCategories(cloudData.categories);
+        if (cloudData.budgets.length > 0) setBudgets(cloudData.budgets);
+        if (cloudData.transactions.length > 0) setTransactions(cloudData.transactions);
+      }
+    };
+
+    syncCloudData();
+
+    // Listen for Realtime Postgres changes from other devices (phone <-> laptop)
+    const unsubscribe = subscribeToRealtimeChanges(() => {
+      syncCloudData();
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, []);
+
   // Handle transaction save (create or update)
   const handleSaveTransaction = (txData: Partial<Transaction>) => {
     if (txData.id) {
@@ -68,10 +102,13 @@ export function App() {
         prev.map((t) => (t.id === txData.id ? updatedTx : t))
       );
 
+      // Persist to Supabase
+      dbUpsertTransaction(updatedTx);
+
       // Re-calculate affected wallet balances
       if (oldTx) {
-        setWallets((prev) =>
-          prev.map((w) => {
+        setWallets((prev) => {
+          const next = prev.map((w) => {
             let b = w.balance;
 
             // Revert old transaction effect
@@ -93,8 +130,10 @@ export function App() {
             }
 
             return { ...w, balance: Math.round(b * 100) / 100 };
-          })
-        );
+          });
+          dbUpsertWallets(next);
+          return next;
+        });
       }
     } else {
       // Create new
@@ -113,10 +152,11 @@ export function App() {
       };
 
       setTransactions((prev) => [newTx, ...prev]);
+      dbUpsertTransaction(newTx);
 
       // Adjust wallet balance
-      setWallets((prev) =>
-        prev.map((w) => {
+      setWallets((prev) => {
+        const next = prev.map((w) => {
           if (w.id === newTx.walletId) {
             const delta = newTx.type === 'income' ? newTx.amount : -newTx.amount;
             return { ...w, balance: Math.round((w.balance + delta) * 100) / 100 };
@@ -125,8 +165,10 @@ export function App() {
             return { ...w, balance: Math.round((w.balance + newTx.amount) * 100) / 100 };
           }
           return w;
-        })
-      );
+        });
+        dbUpsertWallets(next);
+        return next;
+      });
     }
   };
 
@@ -134,9 +176,11 @@ export function App() {
     const tx = transactions.find((t) => t.id === id);
     if (!tx) return;
 
+    dbDeleteTransaction(id);
+
     // Reverse balance adjustment
-    setWallets((prev) =>
-      prev.map((w) => {
+    setWallets((prev) => {
+      const next = prev.map((w) => {
         if (w.id === tx.walletId) {
           const delta = tx.type === 'income' ? -tx.amount : tx.amount;
           return { ...w, balance: Math.round((w.balance + delta) * 100) / 100 };
@@ -145,8 +189,10 @@ export function App() {
           return { ...w, balance: Math.round((w.balance - tx.amount) * 100) / 100 };
         }
         return w;
-      })
-    );
+      });
+      dbUpsertWallets(next);
+      return next;
+    });
 
     setTransactions((prev) => prev.filter((t) => t.id !== id));
   };

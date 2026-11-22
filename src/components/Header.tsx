@@ -1,5 +1,5 @@
 import React from 'react';
-import { Coins, Smartphone, Monitor } from 'lucide-react';
+import { Coins, Cloud } from 'lucide-react';
 import { AppSettings, ActiveTab } from '../types';
 
 interface HeaderProps {
@@ -57,13 +57,12 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Actions */}
       <div className="flex items-center gap-2 sm:gap-3">
-        {/* Mobile & Desktop sync badge */}
-        <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold">
-          <Monitor size={14} className="text-amber-600" />
-          <span>Desktop</span>
-          <span className="text-slate-400">/</span>
-          <Smartphone size={14} className="text-emerald-600" />
-          <span>Mobile Ready</span>
+        {/* Cloud live sync badge */}
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200/60 text-emerald-700 text-xs font-semibold shadow-2xs">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <Cloud size={13} className="text-emerald-600" />
+          <span className="hidden sm:inline">Cloud Live Sync</span>
+          <span className="sm:hidden">Synced</span>
         </div>
 
         {/* Currency Switcher */}
