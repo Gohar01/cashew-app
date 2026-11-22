@@ -14,21 +14,42 @@ export async function fetchAllFromSupabase(): Promise<{
   transactions: Transaction[];
 } | null> {
   try {
-    const [wRes, cRes, bRes, tRes] = await Promise.all([
+    // 1. Fetch metadata in parallel
+    const [wRes, cRes, bRes] = await Promise.all([
       supabase.from('wallets').select('*'),
       supabase.from('categories').select('*'),
       supabase.from('budgets').select('*'),
-      supabase.from('transactions').select('*').order('created_at', { ascending: false }),
     ]);
 
-    if (wRes.error || cRes.error || bRes.error || tRes.error) {
+    if (wRes.error || cRes.error || bRes.error) {
       console.warn('Supabase fetch error, fallback to local:', {
         wErr: wRes.error,
         cErr: cRes.error,
         bErr: bRes.error,
-        tErr: tRes.error,
       });
       return null;
+    }
+
+    // 2. Fetch all transactions with pagination (Supabase default limit is 1,000 rows)
+    let allTxRows: any[] = [];
+    let page = 0;
+    const pageSize = 1000;
+    while (true) {
+      const { data: chunk, error: tErr } = await supabase
+        .from('transactions')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+
+      if (tErr) {
+        console.warn('Supabase transactions chunk fetch error:', tErr);
+        if (allTxRows.length === 0) return null;
+        break;
+      }
+      if (!chunk || chunk.length === 0) break;
+      allTxRows = allTxRows.concat(chunk);
+      if (chunk.length < pageSize) break;
+      page++;
     }
 
     const wallets: Wallet[] = (wRes.data || []).map((row: any) => ({
@@ -62,7 +83,7 @@ export async function fetchAllFromSupabase(): Promise<{
       startDate: new Date().toISOString().split('T')[0],
     }));
 
-    const transactions: Transaction[] = (tRes.data || []).map((row: any) => ({
+    const transactions: Transaction[] = allTxRows.map((row: any) => ({
       id: row.id,
       title: row.title,
       amount: Number(row.amount),
