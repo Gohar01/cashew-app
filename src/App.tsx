@@ -137,9 +137,10 @@ export function App() {
       }
     } else {
       // Create new
+      const newCat = categories.find((c) => c.id === txData.categoryId);
       const newTx: Transaction = {
         id: `tx-${Date.now()}`,
-        title: txData.title || 'Untitled',
+        title: txData.title?.trim() || newCat?.name || 'Untitled',
         amount: txData.amount || 0,
         type: txData.type || 'expense',
         categoryId: txData.categoryId || categories[0]?.id || 'cat-food',

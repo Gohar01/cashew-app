@@ -65,6 +65,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
   if (!isOpen) return null;
 
   const filteredCategories = categories.filter((c) => c.type === (type === 'income' ? 'income' : 'expense'));
+  const selectedCategory = categories.find((c) => c.id === categoryId) || filteredCategories[0];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,12 +82,14 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
       }
     }
 
+    const finalTitle = title.trim() || selectedCategory?.name || 'Untitled';
+
     onSave({
       id: editingTransaction ? editingTransaction.id : undefined,
       type,
-      title: title.trim() || 'Untitled',
+      title: finalTitle,
       amount: numAmount,
-      categoryId: categoryId || categories[0]?.id || 'cat-other-exp',
+      categoryId: categoryId || filteredCategories[0]?.id || 'cat-other-exp',
       walletId: walletId || wallets[0]?.id || 'wal-main',
       date,
       time,
@@ -172,13 +175,17 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
 
           {/* Title Input */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-              Title / Description
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                Title / Description
+              </label>
+              <span className="text-[11px] font-semibold text-slate-400">
+                Optional
+              </span>
+            </div>
             <input
               type="text"
-              required
-              placeholder="e.g. Trader Joe's, Gas, Salary"
+              placeholder={selectedCategory ? `e.g. ${selectedCategory.name}` : "e.g. Trader Joe's, Gas, Salary"}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full text-sm font-semibold px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
