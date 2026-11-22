@@ -118,7 +118,7 @@ export const WalletsView: React.FC<WalletsViewProps> = ({
     }
 
     if (linkedIds.length === 0) {
-      const reconciled = wallet.reconciledBalance ?? (isMeezan ? 68804.39 : undefined);
+      const reconciled = wallet.reconciledBalance;
       return {
         actualBalance: reconciled ?? wallet.balance,
         calculatedSum: wallet.balance,
@@ -131,9 +131,9 @@ export const WalletsView: React.FC<WalletsViewProps> = ({
       .map((id) => walletMap.get(id))
       .filter(Boolean) as Wallet[];
     const subTotal = linked.reduce((acc, w) => acc + w.balance, 0);
-    const calculatedSum = wallet.balance + subTotal;
+    const calculatedSum = Math.round((wallet.balance + subTotal) * 100) / 100;
 
-    const reconciled = wallet.reconciledBalance ?? (isMeezan ? 68804.39 : undefined);
+    const reconciled = wallet.reconciledBalance;
     const actualBalance = reconciled !== undefined ? reconciled : calculatedSum;
     const discrepancy = calculatedSum - actualBalance;
 

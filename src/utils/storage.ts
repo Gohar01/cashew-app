@@ -8,11 +8,11 @@ import {
 } from '../data/defaultData';
 
 const STORAGE_KEYS = {
-  CATEGORIES: 'cashew_categories_v10',
-  WALLETS: 'cashew_wallets_v10',
-  TRANSACTIONS: 'cashew_transactions_v10',
-  BUDGETS: 'cashew_budgets_v10',
-  SETTINGS: 'cashew_settings_v10',
+  CATEGORIES: 'cashew_categories_v11',
+  WALLETS: 'cashew_wallets_v11',
+  TRANSACTIONS: 'cashew_transactions_v11',
+  BUDGETS: 'cashew_budgets_v11',
+  SETTINGS: 'cashew_settings_v11',
 };
 
 export function loadStoredData<T>(key: string, fallback: T): T {
@@ -55,7 +55,7 @@ export const Storage = {
 
       // Hard safety guarantees for physical bank grouping
       if (updated.id === 'wal-meezan') {
-        updated.reconciledBalance = 68804.39;
+        delete updated.reconciledBalance;
         if (!updated.linkedAccountIds?.includes('wal-charity')) {
           updated.linkedAccountIds = [...(updated.linkedAccountIds || []), 'wal-charity'];
         }

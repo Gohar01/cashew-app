@@ -423,8 +423,7 @@ export const CASHEW_WALLETS: Wallet[] = [
       "wal-profit",
       "wal-tbi-in-mahana-gold-fund--mgsf-",
       "wal-charity"
-    ],
-    "reconciledBalance": 68804.39
+    ]
   },
   {
     "id": "wal-tbi-in-mahana-gold-fund--mgsf-",
