@@ -18,8 +18,26 @@ const STORAGE_KEYS = {
 export function loadStoredData<T>(key: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(key);
-    if (!raw) return fallback;
-    return JSON.parse(raw);
+    if (raw) return JSON.parse(raw);
+
+    // If current key doesn't exist yet, check and migrate forward from previous versions
+    // so user edits are NEVER lost on updates
+    const baseKey = key.replace(/_v\d+$/, '');
+    for (let v = 20; v >= 1; v--) {
+      const prevKey = `${baseKey}_v${v}`;
+      const prevRaw = localStorage.getItem(prevKey);
+      if (prevRaw) {
+        try {
+          const parsed = JSON.parse(prevRaw);
+          localStorage.setItem(key, prevRaw);
+          return parsed;
+        } catch {
+          // ignore corrupted previous keys
+        }
+      }
+    }
+
+    return fallback;
   } catch (err) {
     console.error(`Error loading key "${key}" from localStorage:`, err);
     return fallback;
