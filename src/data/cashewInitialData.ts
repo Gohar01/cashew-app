@@ -410,7 +410,7 @@ export const CASHEW_WALLETS: Wallet[] = [
   {
     "id": "wal-meezan",
     "name": "Meezan",
-    "balance": -459216.1,
+    "balance": -463216.1,
     "currency": "PKR",
     "color": "#059669",
     "icon": "Landmark",
