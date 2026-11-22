@@ -101,14 +101,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* Metric Cards Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Net Balance */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs relative overflow-hidden">
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs min-w-0">
           <div className="flex items-center justify-between text-xs font-semibold text-slate-600 mb-2">
             <span>Net Balance</span>
             <span className="p-1 rounded-lg bg-blue-50 text-blue-600">
               <TrendingUp size={16} />
             </span>
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+          <div 
+            className="text-xl sm:text-2xl xl:text-[26px] font-black text-slate-900 tracking-tight truncate"
+            title={`${currencySymbol}${totalBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          >
             {currencySymbol}{totalBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <div className="text-xs text-slate-600 mt-2 font-medium">
@@ -117,14 +120,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {/* Total Income */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs">
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs min-w-0">
           <div className="flex items-center justify-between text-xs font-semibold text-slate-600 mb-2">
             <span>Total Income</span>
             <span className="p-1 rounded-lg bg-emerald-50 text-emerald-600">
               <ArrowDownLeft size={16} />
             </span>
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-emerald-600 tracking-tight">
+          <div 
+            className="text-xl sm:text-2xl xl:text-[26px] font-black text-emerald-600 tracking-tight truncate"
+            title={`+${currencySymbol}${totalIncome.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          >
             +{currencySymbol}{totalIncome.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <div className="text-xs text-emerald-600/90 mt-2 font-medium flex items-center gap-1">
@@ -133,14 +139,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {/* Total Expenses */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs">
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs min-w-0">
           <div className="flex items-center justify-between text-xs font-semibold text-slate-600 mb-2">
             <span>Total Expenses</span>
             <span className="p-1 rounded-lg bg-rose-50 text-rose-600">
               <ArrowUpRight size={16} />
             </span>
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-rose-600 tracking-tight">
+          <div 
+            className="text-xl sm:text-2xl xl:text-[26px] font-black text-rose-600 tracking-tight truncate"
+            title={`-${currencySymbol}${totalExpense.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          >
             -{currencySymbol}{totalExpense.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <div className="text-xs text-rose-600/90 mt-2 font-medium flex items-center gap-1">
@@ -149,14 +158,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {/* Net Cash Flow / Savings */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs">
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs min-w-0">
           <div className="flex items-center justify-between text-xs font-semibold text-slate-600 mb-2">
             <span>Net Savings</span>
             <span className={`p-1 rounded-lg ${netSavings >= 0 ? 'bg-amber-50 text-amber-600' : 'bg-red-50 text-red-600'}`}>
               <TrendingDown size={16} />
             </span>
           </div>
-          <div className={`text-2xl sm:text-3xl font-black tracking-tight ${netSavings >= 0 ? 'text-amber-600' : 'text-red-600'}`}>
+          <div 
+            className={`text-xl sm:text-2xl xl:text-[26px] font-black tracking-tight truncate ${netSavings >= 0 ? 'text-amber-600' : 'text-red-600'}`}
+            title={`${netSavings >= 0 ? '+' : ''}${currencySymbol}${netSavings.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          >
             {netSavings >= 0 ? '+' : ''}{currencySymbol}{netSavings.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <div className="text-xs text-slate-600 mt-2 font-medium">
