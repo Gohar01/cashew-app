@@ -36,6 +36,8 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
   const [note, setNote] = useState('');
 
   useEffect(() => {
+    if (!isOpen) return;
+
     if (editingTransaction) {
       setType(editingTransaction.type);
       setTitle(editingTransaction.title);
@@ -60,7 +62,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
       setTime(`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`);
       setNote('');
     }
-  }, [editingTransaction, defaultWalletId, isOpen, categories, wallets]);
+  }, [isOpen, editingTransaction, defaultWalletId]);
 
   if (!isOpen) return null;
 
@@ -258,17 +260,17 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
             </div>
           </div>
 
-          {/* Optional Note */}
+          {/* Optional Note (Multiline) */}
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
               Optional Note
             </label>
-            <input
-              type="text"
-              placeholder="Details..."
+            <textarea
+              rows={3}
+              placeholder="Add details, multiline notes, reference numbers..."
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              className="w-full text-xs font-medium px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden"
+              className="w-full text-xs font-medium px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 resize-y"
             />
           </div>
 
