@@ -1,0 +1,81 @@
+account,amount,amount unpaid,currency,title,note,date,income,type,category name,subcategory name,color,icon,emoji,budget,objective,extra
+Cash,-1200.0,,PKR,Araiz Milk,3 Kg Goat Milk -> 1200,2026-11-21 16:30:59.000,false,default,Araiz Expense,,0XFF42A5F5,,🧍‍♂️,,,repeat every 1 month
+Cash,-530.0,,PKR,,"Lassi -> 180
+Kajoo Shake -> 350",2026-11-21 16:30:51.000,false,default,Outside Food,,0XFFFF7043,fast-food,,,,repeat every 1 month
+Cash,-480.0,,PKR,Nashta @ Quetta Tea 4 You,,2026-11-21 14:20:36.000,false,default,Outing,,0XFF26A69A,picnic,,,,repeat every 1 month
+"Waheed Build ",-400.0,,PKR,Waheed Wife Weekly AIO Package,"Transferred Balance
+EasyPaisa → Waheed Build ",2026-11-21 02:41:31.000,false,lent,Loan,,0XFFEF5350,money,,,,repeat every 1 month
+EasyPaisa,-400.0,,PKR,Waheed Wife Weekly AIO Package,"Transferred Balance
+EasyPaisa → Waheed Build ",2026-11-21 02:41:30.000,false,default,Balance Correction,,0XFF607D8B,charts,,,,
+Cash,-160.0,,PKR,,Chai -> 160,2026-11-20 23:55:08.000,false,default,Daily Expense,,0XFF66BB6A,wallet,,,,repeat every 1 month
+Wife,180.0,,PKR,Give Cash,"Transferred Balance
+Cash → Wife",2026-11-20 23:50:31.000,true,default,Balance Correction,,0XFF607D8B,charts,,,,repeat every 1 month
+Cash,-180.0,,PKR,Give Cash,"Transferred Balance
+Cash → Wife",2026-11-20 23:50:30.000,false,default,Balance Correction,,0XFF607D8B,charts,,,,repeat every 1 month
+Profit,234.0,,PKR,OGDC Dividend PSX,,2026-11-20 20:46:40.000,true,default,Profit,,0XFF66BB6A,increase,,,,repeat every 1 month
+Charity,5.0,,PKR,2% of OGDC Dividend,"Transferred Balance
+Profit → Charity",2026-11-20 20:46:31.000,true,default,Balance Correction,,0XFF607D8B,charts,,,,
+Profit,-5.0,,PKR,2% of OGDC Dividend,"Transferred Balance
+Profit → Charity",2026-11-20 20:46:30.000,false,default,Balance Correction,,0XFF607D8B,charts,,,,
+Habib Metropolitan,-15000.0,,PKR,For Saira Furniture Advance,,2026-11-20 15:27:01.000,false,default,Mom Home Expense,,0XFFFFA726,house,,,,repeat every 1 month
+Shahrukh HDC,-625.0,,PKR,Lunch @ KFC DMC,,2026-11-20 15:14:44.000,false,lent,Outside Food,,0XFFFF7043,fast-food,,,,repeat every 1 month
+Profit,642.0,,PKR,HUBCO Dividend PSX,,2026-11-20 13:40:44.000,true,default,Profit,,0XFF66BB6A,increase,,,,repeat every 1 month
+Charity,13.0,,PKR,2% of HUBCO Dividend,"Transferred Balance
+Profit → Charity",2026-11-20 13:40:31.000,true,default,Balance Correction,,0XFF607D8B,charts,,,,
+Profit,-13.0,,PKR,2% of HUBCO Dividend,"Transferred Balance
+Profit → Charity",2026-11-20 13:40:30.000,false,default,Balance Correction,,0XFF607D8B,charts,,,,
+Habib Metropolitan,60000.0,,PKR,Withdrawal Amount from MEF,"Transferred Balance
+Mutual Funds → Habib Metropolitan",2026-11-20 13:11:31.000,true,default,Balance Correction,,0XFF607D8B,charts,,,,repeat every 1 month
+Mutual Funds,-60000.0,,PKR,Withdrawal Amount from MEF,"Transferred Balance
+Mutual Funds → Habib Metropolitan",2026-11-20 13:11:30.000,false,default,Balance Correction,,0XFF607D8B,charts,,,,repeat every 1 month
+Habib Metropolitan,-90000.0,,PKR,Withdrawal Amount from AMMF,,2026-11-20 13:10:30.000,false,default,Balance Correction,,0XFF607D8B,charts,,,,repeat every 1 month
+Cash,-820.0,,PKR,Wife fare from Home to Quetta Town,,2026-11-20 11:50:23.000,false,default,Transportation,,,car,,,,repeat every 1 month
+Charity,600.0,,PKR,2 % of Amount Received from Rizwan Bhai in EasyPaisa,"Transferred Balance
+EasyPaisa → Charity",2026-11-20 03:31:31.000,true,default,Balance Correction,,0XFF607D8B,charts,,,,repeat every 1 month
+EasyPaisa,-600.0,,PKR,2 % of Amount Received from Rizwan Bhai in EasyPaisa,"Transferred Balance
+EasyPaisa → Charity",2026-11-20 03:31:30.000,false,default,Balance Correction,,0XFF607D8B,charts,,,,repeat every 1 month
+Cash,-260.0,,PKR,,Vegetables -> 260,2026-11-19 23:55:22.000,false,default,Daily Expense,,0XFF66BB6A,wallet,,,,repeat every 1 month
+Cash,-500.0,,PKR,,"Kaleji Bun -> 170
+Shmai Anda Burger -> 200
+Kokan Burger -> 130",2026-11-19 23:10:27.000,false,default,Outside Food,,0XFFFF7043,fast-food,,,,repeat every 1 month
+Cash,-200.0,,PKR,3 Socks set,,2026-11-19 20:50:34.000,false,default,Personal Expense,,,,🤵,,,repeat every 1 month
+Wife,1300.0,,PKR,Muhammad 2 Round High Neck,"Transferred Balance
+Cash → Wife",2026-11-19 20:50:31.000,true,default,Balance Correction,,0XFF607D8B,charts,,,,
+Cash,-1300.0,,PKR,Muhammad 2 Round High Neck,"Transferred Balance
+Cash → Wife",2026-11-19 20:50:30.000,false,default,Balance Correction,,0XFF607D8B,charts,,,,
+NayaPay,4727.0,,PKR,Return of Shein Shopping,"Transferred Balance
+Habib Metropolitan → NayaPay",2026-11-19 18:33:31.000,true,default,Balance Correction,,0XFF607D8B,charts,,,,
+Habib Metropolitan,-4727.0,,PKR,Return of Shein Shopping,"Transferred Balance
+Habib Metropolitan → NayaPay",2026-11-19 18:33:30.000,false,default,Balance Correction,,0XFF607D8B,charts,,,,
+Wife,-180.0,,PKR,Nails Sticker from Daraz,,2026-11-19 16:50:57.000,false,default,Wife Expense,,0XFF26A69A,dress,,,,repeat every 1 month
+Meezan,1000.0,,PKR,Compensate TBI in Dao Proptech (MFPF),"Transferred Balance
+Habib Metropolitan → Meezan",2026-11-19 13:48:31.000,true,default,Balance Correction,,0XFF607D8B,charts,,,,
+Habib Metropolitan,-1000.0,,PKR,Compensate TBI in Dao Proptech (MFPF),"Transferred Balance
+Habib Metropolitan → Meezan",2026-11-19 13:48:30.000,false,default,Balance Correction,,0XFF607D8B,charts,,,,
+TBI in Mahana Gold Fund (MGSF),1000.0,,PKR,Monthly share of TBI in Mahana GF (MGSF),"Transferred Balance
+Habib Metropolitan → TBI in Mahana Gold Fund (MGSF)",2026-11-19 13:04:31.000,true,default,Balance Correction,,0XFF607D8B,charts,,,,
+Habib Metropolitan,-1000.0,,PKR,Monthly share of TBI in Mahana GF (MGSF),"Transferred Balance
+Habib Metropolitan → TBI in Mahana Gold Fund (MGSF)",2026-11-19 13:04:30.000,false,default,Balance Correction,,0XFF607D8B,charts,,,,
+Habib Metropolitan,-35.0,,PKR,KuickPay Fees,,2026-11-19 13:04:13.000,false,default,Bills & Fees,,0XFF4CAF50,bills,,,,repeat every 1 month
+NayaPay,-4727.0,,PKR,Shopping from Shein,,2026-11-19 04:24:38.000,false,default,Online Shopping,,0XFFEF5350,shopping-cart,,,,repeat every 1 month
+Mutual Funds,1000.0,,PKR,Buy MIIF (Dad Eye Operation),"Transferred Balance
+Habib Metropolitan → Mutual Funds",2026-11-19 01:43:31.000,true,default,Balance Correction,,0XFF607D8B,charts,,,,repeat every 1 month
+Habib Metropolitan,-1000.0,,PKR,Buy MIIF (Dad Eye Operation),"Transferred Balance
+Habib Metropolitan → Mutual Funds",2026-11-19 01:43:30.000,false,default,Balance Correction,,0XFF607D8B,charts,,,,repeat every 1 month
+Cash,-450.0,,PKR,,"2 Waheed Maway -> 300
+Kebab Masalay Plate -> 100
+Curd -> 50",2026-11-18 23:55:09.000,false,default,Daily Expense,,0XFF66BB6A,wallet,,,,repeat every 1 month
+Charity,1.0,,PKR,2% of SAZEW Dividend,"Transferred Balance
+Profit → Charity",2026-11-18 18:28:31.000,true,default,Balance Correction,,0XFF607D8B,charts,,,,
+Profit,38.0,,PKR,SAZEW Dividend PSX,,2026-11-18 18:28:31.000,true,default,Profit,,0XFF66BB6A,increase,,,,repeat every 1 month
+Profit,-1.0,,PKR,2% of SAZEW Dividend,"Transferred Balance
+Profit → Charity",2026-11-18 18:28:30.000,false,default,Balance Correction,,0XFF607D8B,charts,,,,
+Abdul Rehman HDC,180.0,,PKR,Abdul Rehman HDC Transfer Out,"Transferred Balance
+Abdul Rehman HDC → Jawad HDC",2026-11-18 17:05:31.000,true,borrowed,Balance Correction,,0XFF607D8B,charts,,,,repeat every 1 month
+Jawad HDC,-180.0,,PKR,Jawad HDC Transfer In,"Transferred Balance
+Abdul Rehman HDC → Jawad HDC",2026-11-18 17:05:30.000,false,lent,Balance Correction,,0XFF607D8B,charts,,,,repeat every 1 month
+Profit,171.0,,PKR,NATF Dividend PSX,,2026-11-18 10:10:46.000,true,default,Profit,,0XFF66BB6A,increase,,,,repeat every 1 month
+Charity,3.0,,PKR,2% of NATF Dividend,"Transferred Balance
+Profit → Charity",2026-11-18 10:10:31.000,true,default,Balance Correction,,0XFF607D8B,charts,,,,
+Profit,-3.0,,PKR,2% of NATF Dividend,"Transferred Balance
+Profit → Charity",2026-11-18 10:10:30.000,false,default,Balance Correction,,0XFF607D8B,charts,,,,
