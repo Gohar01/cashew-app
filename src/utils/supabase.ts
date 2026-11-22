@@ -63,6 +63,7 @@ export async function fetchAllFromSupabase(): Promise<{
       parentWalletId: row.parent_wallet_id,
       monthlyNote: row.monthly_note,
       linkedAccountIds: Array.isArray(row.linked_account_ids) ? row.linked_account_ids : [],
+      reconciledBalance: row.id === 'wal-meezan' ? 74504.39 : undefined,
     }));
 
     const categories: Category[] = (cRes.data || []).map((row: any) => ({

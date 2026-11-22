@@ -73,7 +73,9 @@ export const Storage = {
 
       // Hard safety guarantees for physical bank grouping
       if (updated.id === 'wal-meezan') {
-        delete updated.reconciledBalance;
+        if (def?.reconciledBalance !== undefined) {
+          updated.reconciledBalance = def.reconciledBalance;
+        }
         if (!updated.linkedAccountIds?.includes('wal-charity')) {
           updated.linkedAccountIds = [...(updated.linkedAccountIds || []), 'wal-charity'];
         }
