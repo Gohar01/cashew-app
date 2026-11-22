@@ -1,9 +1,9 @@
 import React from 'react';
 import {
   LayoutDashboard,
+  Wallet as WalletIcon,
   Receipt,
   PieChart,
-  FileSpreadsheet,
   Plus,
 } from 'lucide-react';
 import { ActiveTab } from '../types';
@@ -20,7 +20,8 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   onOpenAddModal,
 }) => {
   return (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200/80 px-3 py-2 z-40 flex items-center justify-around shadow-lg">
+    <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200/80 px-2 py-1.5 z-40 flex items-center justify-around shadow-lg">
+      {/* 1. Overview */}
       <button
         onClick={() => onTabChange('dashboard')}
         className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition-colors cursor-pointer ${
@@ -31,6 +32,27 @@ export const BottomNav: React.FC<BottomNavProps> = ({
         <span className="text-[10px]">Overview</span>
       </button>
 
+      {/* 2. Accounts & Wallets */}
+      <button
+        onClick={() => onTabChange('wallets')}
+        className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition-colors cursor-pointer ${
+          activeTab === 'wallets' ? 'text-amber-600 font-bold' : 'text-slate-500 font-medium'
+        }`}
+      >
+        <WalletIcon size={20} strokeWidth={activeTab === 'wallets' ? 2.5 : 2} />
+        <span className="text-[10px]">Accounts</span>
+      </button>
+
+      {/* 3. Floating Center Action Button */}
+      <button
+        onClick={onOpenAddModal}
+        className="-mt-5 w-12 h-12 rounded-full bg-gradient-to-tr from-amber-500 to-amber-600 text-white flex items-center justify-center shadow-lg shadow-amber-500/35 border-2 border-white active:scale-95 transition-all cursor-pointer"
+        aria-label="Add transaction"
+      >
+        <Plus size={24} strokeWidth={2.8} />
+      </button>
+
+      {/* 4. Transactions History */}
       <button
         onClick={() => onTabChange('transactions')}
         className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition-colors cursor-pointer ${
@@ -41,15 +63,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
         <span className="text-[10px]">History</span>
       </button>
 
-      {/* Floating Center Action Button */}
-      <button
-        onClick={onOpenAddModal}
-        className="-mt-5 w-12 h-12 rounded-full bg-gradient-to-tr from-amber-500 to-amber-600 text-white flex items-center justify-center shadow-lg shadow-amber-500/35 border-2 border-white active:scale-95 transition-all cursor-pointer"
-        aria-label="Add transaction"
-      >
-        <Plus size={24} strokeWidth={2.8} />
-      </button>
-
+      {/* 5. Budgets & Goals */}
       <button
         onClick={() => onTabChange('budgets')}
         className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition-colors cursor-pointer ${
@@ -58,16 +72,6 @@ export const BottomNav: React.FC<BottomNavProps> = ({
       >
         <PieChart size={20} strokeWidth={activeTab === 'budgets' ? 2.5 : 2} />
         <span className="text-[10px]">Budgets</span>
-      </button>
-
-      <button
-        onClick={() => onTabChange('import-export')}
-        className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition-colors cursor-pointer ${
-          activeTab === 'import-export' ? 'text-amber-600 font-bold' : 'text-slate-500 font-medium'
-        }`}
-      >
-        <FileSpreadsheet size={20} strokeWidth={activeTab === 'import-export' ? 2.5 : 2} />
-        <span className="text-[10px]">Data</span>
       </button>
     </div>
   );

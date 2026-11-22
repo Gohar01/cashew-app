@@ -8,7 +8,7 @@ import {
   ChevronRight,
   Upload,
 } from 'lucide-react';
-import { Transaction, Category, Wallet, Budget } from '../types';
+import { Transaction, Category, Wallet, Budget, ActiveTab } from '../types';
 import { CategoryIcon } from './CategoryIcon';
 import { formatTransactionTime, formatTransactionDate } from '../utils/date';
 
@@ -18,7 +18,7 @@ interface DashboardViewProps {
   wallets: Wallet[];
   budgets: Budget[];
   currencySymbol: string;
-  onNavigateTab: (tab: 'transactions' | 'budgets' | 'import-export') => void;
+  onNavigateTab: (tab: ActiveTab) => void;
   onOpenAddModal: () => void;
 }
 
@@ -100,11 +100,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
       {/* Metric Cards Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Net Balance */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs min-w-0">
+        {/* Net Balance (Clickable: navigates to Accounts & Wallets) */}
+        <div 
+          onClick={() => onNavigateTab('wallets')}
+          className="bg-white border border-slate-200/80 hover:border-amber-400 rounded-2xl p-4 sm:p-5 shadow-xs min-w-0 cursor-pointer transition-all group"
+          title="Click to view all accounts & wallets"
+        >
           <div className="flex items-center justify-between text-xs font-semibold text-slate-600 mb-2">
             <span>Net Balance</span>
-            <span className="p-1 rounded-lg bg-blue-50 text-blue-600">
+            <span className="p-1 rounded-lg bg-blue-50 text-blue-600 group-hover:bg-amber-50 group-hover:text-amber-600 transition-colors">
               <TrendingUp size={16} />
             </span>
           </div>
@@ -114,8 +118,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           >
             {currencySymbol}{totalBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
-          <div className="text-xs text-slate-600 mt-2 font-medium">
-            Across {wallets.length} active wallets
+          <div className="text-xs text-amber-600 mt-2 font-medium flex items-center justify-between">
+            <span>Across {wallets.length} active wallets</span>
+            <span className="text-[11px] font-bold group-hover:underline">View All →</span>
           </div>
         </div>
 
