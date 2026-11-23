@@ -9,6 +9,7 @@ import {
 import { Transaction, Category, Wallet, TransactionType } from '../types';
 import { CategoryIcon } from './CategoryIcon';
 import { formatTransactionTime, formatTransactionDate } from '../utils/date';
+import { isDebtSettlementTx } from '../utils/debt';
 
 interface TransactionsViewProps {
   transactions: Transaction[];
@@ -197,6 +198,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
               const toWal = tx.toWalletId ? walletMap.get(tx.toWalletId) : null;
               const isIncome = tx.type === 'income';
               const isTransfer = tx.type === 'transfer';
+              const isDebt = isDebtSettlementTx(tx);
 
               return (
                 <div
@@ -205,8 +207,8 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                 >
                   <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                     <CategoryIcon
-                      name={isTransfer ? 'ArrowRightLeft' : (cat?.icon || 'Tag')}
-                      color={isTransfer ? '#4f46e5' : (cat?.color || (isIncome ? '#10b981' : '#f59e0b'))}
+                      name={isDebt ? 'Handshake' : isTransfer ? 'ArrowRightLeft' : (cat?.icon || 'Tag')}
+                      color={isDebt ? '#059669' : isTransfer ? '#4f46e5' : (cat?.color || (isIncome ? '#10b981' : '#f59e0b'))}
                       size={20}
                     />
                     <div className="min-w-0">
@@ -215,9 +217,13 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                           {tx.title}
                         </span>
                         <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${
-                          isTransfer ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-100 text-slate-600'
+                          isDebt
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/50'
+                            : isTransfer
+                            ? 'bg-indigo-50 text-indigo-700'
+                            : 'bg-slate-100 text-slate-600'
                         }`}>
-                          {isTransfer ? 'Transfer' : (cat?.name || 'Category')}
+                          {isDebt ? '🤝 Debt Settled' : isTransfer ? 'Transfer' : (cat?.name || 'Category')}
                         </span>
                       </div>
                       <div className="text-xs text-slate-400 flex items-center gap-1.5 sm:gap-2 mt-1 truncate">

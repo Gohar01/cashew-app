@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { ActiveTab, Transaction, Category, Wallet, Budget, AppSettings } from './types';
 import { Storage } from './utils/storage';
+import { getTxBalanceDelta } from './utils/debt';
 import {
   fetchAllFromSupabase,
   dbUpsertTransaction,
@@ -110,25 +111,10 @@ export function App() {
         setWallets((prev) => {
           const next = prev.map((w) => {
             let b = w.balance;
-
             // Revert old transaction effect
-            if (w.id === oldTx.walletId) {
-              const oldDelta = oldTx.type === 'income' ? oldTx.amount : -oldTx.amount;
-              b -= oldDelta;
-            }
-            if (oldTx.toWalletId && w.id === oldTx.toWalletId) {
-              b -= oldTx.amount;
-            }
-
+            b -= getTxBalanceDelta(oldTx, w.id, prev);
             // Apply new transaction effect
-            if (w.id === updatedTx.walletId) {
-              const newDelta = updatedTx.type === 'income' ? updatedTx.amount : -updatedTx.amount;
-              b += newDelta;
-            }
-            if (updatedTx.toWalletId && w.id === updatedTx.toWalletId) {
-              b += updatedTx.amount;
-            }
-
+            b += getTxBalanceDelta(updatedTx, w.id, prev);
             return { ...w, balance: Math.round(b * 100) / 100 };
           });
           dbUpsertWallets(next);
@@ -150,6 +136,7 @@ export function App() {
         time: txData.time,
         note: txData.note,
         createdAt: txData.createdAt || Date.now(),
+        isDebtSettlement: txData.isDebtSettlement,
       };
 
       setTransactions((prev) => [newTx, ...prev]);
@@ -158,12 +145,9 @@ export function App() {
       // Adjust wallet balance
       setWallets((prev) => {
         const next = prev.map((w) => {
-          if (w.id === newTx.walletId) {
-            const delta = newTx.type === 'income' ? newTx.amount : -newTx.amount;
+          const delta = getTxBalanceDelta(newTx, w.id, prev);
+          if (delta !== 0) {
             return { ...w, balance: Math.round((w.balance + delta) * 100) / 100 };
-          }
-          if (newTx.toWalletId && w.id === newTx.toWalletId) {
-            return { ...w, balance: Math.round((w.balance + newTx.amount) * 100) / 100 };
           }
           return w;
         });
@@ -182,12 +166,9 @@ export function App() {
     // Reverse balance adjustment
     setWallets((prev) => {
       const next = prev.map((w) => {
-        if (w.id === tx.walletId) {
-          const delta = tx.type === 'income' ? -tx.amount : tx.amount;
-          return { ...w, balance: Math.round((w.balance + delta) * 100) / 100 };
-        }
-        if (tx.toWalletId && w.id === tx.toWalletId) {
-          return { ...w, balance: Math.round((w.balance - tx.amount) * 100) / 100 };
+        const delta = getTxBalanceDelta(tx, w.id, prev);
+        if (delta !== 0) {
+          return { ...w, balance: Math.round((w.balance - delta) * 100) / 100 };
         }
         return w;
       });

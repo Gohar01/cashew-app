@@ -20,6 +20,7 @@ export interface Wallet {
   parentWalletId?: string; // ID of physical parent wallet if this is a sub-account/envelope
   monthlyNote?: string; // Monthly commitment note (e.g. "Rs 2,000/mo to MCF")
   reconciledBalance?: number; // Physical bank statement amount (reconciled bank balance)
+  isDebt?: boolean; // True if this is a person / lent / debt tracking account
 }
 
 export interface Transaction {
@@ -34,6 +35,7 @@ export interface Transaction {
   time?: string; // Optional time string e.g. "3:31 AM"
   note?: string;
   createdAt: number;
+  isDebtSettlement?: boolean; // True if this transfer is a debt / lent settlement
 }
 
 export interface Budget {

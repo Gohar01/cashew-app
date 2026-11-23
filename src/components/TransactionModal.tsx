@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Check, ArrowRightLeft } from 'lucide-react';
 import { Transaction, Category, Wallet, TransactionType } from '../types';
+import { isDebtAccount, isDebtSettlementTx } from '../utils/debt';
 
 interface TransactionModalProps {
   isOpen: boolean;
@@ -29,6 +30,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
   const [categoryId, setCategoryId] = useState('');
   const [walletId, setWalletId] = useState('');
   const [toWalletId, setToWalletId] = useState('');
+  const [isDebtSettlement, setIsDebtSettlement] = useState(false);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [time, setTime] = useState(() => {
     const now = new Date();
@@ -46,6 +48,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
       setCategoryId(editingTransaction.categoryId);
       setWalletId(editingTransaction.walletId);
       setToWalletId(editingTransaction.toWalletId || '');
+      setIsDebtSettlement(isDebtSettlementTx(editingTransaction));
       setDate(editingTransaction.date);
       if (editingTransaction.createdAt) {
         const d = new Date(editingTransaction.createdAt);
@@ -61,7 +64,12 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
       const initialWalletId = defaultWalletId || wallets[0]?.id || '';
       setWalletId(initialWalletId);
       const otherWallet = wallets.find((w) => w.id !== initialWalletId);
-      setToWalletId(otherWallet?.id || wallets[1]?.id || '');
+      const initialToId = otherWallet?.id || wallets[1]?.id || '';
+      setToWalletId(initialToId);
+      setIsDebtSettlement(
+        isDebtAccount(wallets.find((w) => w.id === initialWalletId)) ||
+        isDebtAccount(otherWallet)
+      );
       setDate(new Date().toISOString().split('T')[0]);
       const now = new Date();
       setTime(`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`);
@@ -69,12 +77,21 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
     }
   }, [isOpen, editingTransaction, defaultWalletId]);
 
+  const fromWallet = wallets.find((w) => w.id === walletId);
+  const toWallet = wallets.find((w) => w.id === toWalletId);
+
+  // Auto-detect debt settlement when switching wallets in new transfer
+  useEffect(() => {
+    if (!editingTransaction && type === 'transfer') {
+      const hasDebt = isDebtAccount(fromWallet) || isDebtAccount(toWallet);
+      setIsDebtSettlement(hasDebt);
+    }
+  }, [type, walletId, toWalletId, editingTransaction]);
+
   if (!isOpen) return null;
 
   const filteredCategories = categories.filter((c) => c.type === (type === 'income' ? 'income' : 'expense'));
   const selectedCategory = categories.find((c) => c.id === categoryId) || filteredCategories[0];
-  const fromWallet = wallets.find((w) => w.id === walletId);
-  const toWallet = wallets.find((w) => w.id === toWalletId);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -105,8 +122,15 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
       : (selectedCategory?.name || 'Untitled');
 
     const finalTitle = title.trim() || defaultTitle;
-    const defaultNote = type === 'transfer' ? `Transferred Balance\n${fromWallet?.name} → ${toWallet?.name}` : '';
-    const finalNote = note.trim() || defaultNote;
+    const defaultNote = type === 'transfer'
+      ? (isDebtSettlement
+          ? `[Debt Settlement]\nTransferred Balance\n${fromWallet?.name} → ${toWallet?.name}`
+          : `Transferred Balance\n${fromWallet?.name} → ${toWallet?.name}`)
+      : '';
+    let finalNote = note.trim() || defaultNote;
+    if (type === 'transfer' && isDebtSettlement && !finalNote.includes('[Debt Settlement]')) {
+      finalNote = `[Debt Settlement] ${finalNote}`;
+    }
 
     onSave({
       id: editingTransaction ? editingTransaction.id : undefined,
@@ -120,6 +144,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
       time,
       createdAt: createdTimestamp,
       note: finalNote,
+      isDebtSettlement: type === 'transfer' ? isDebtSettlement : false,
     });
     onClose();
   };
@@ -218,10 +243,12 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
 
           {/* Account / Category Selection */}
           {type === 'transfer' ? (
-            <div className="space-y-2 p-3.5 bg-indigo-50/70 border border-indigo-100 rounded-2xl">
+            <div className="space-y-2.5 p-3.5 bg-indigo-50/70 border border-indigo-100 rounded-2xl">
               <div className="flex items-center justify-between text-[11px] font-black text-indigo-900 uppercase tracking-wider">
                 <span>Transfer Routing</span>
-                <span className="text-indigo-600 font-semibold normal-case">Deducts from source, adds to destination</span>
+                <span className="text-indigo-600 font-semibold normal-case">
+                  {isDebtSettlement ? 'Debt / Lent Settlement' : 'Deducts from source, adds to destination'}
+                </span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
@@ -263,6 +290,51 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                       </option>
                     ))}
                   </select>
+                </div>
+              </div>
+
+              {/* Debt Settlement Toggle Card */}
+              <div className={`p-2.5 rounded-xl border transition-all ${
+                isDebtSettlement
+                  ? 'bg-emerald-50/90 border-emerald-200'
+                  : 'bg-white/80 border-indigo-100'
+              }`}>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-sm shrink-0">{isDebtSettlement ? '🤝' : '⇄'}</span>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-slate-800">Debt / Lent Settlement</span>
+                        {isDebtSettlement && (
+                          <span className="text-[9px] bg-emerald-600 text-white font-extrabold px-1.5 py-0.5 rounded-md uppercase tracking-wider">
+                            Active
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-slate-500 truncate mt-0.5">
+                        {isDebtSettlement
+                          ? (isDebtAccount(fromWallet) && !isDebtAccount(toWallet))
+                            ? `Settles ${fromWallet?.name}'s debt towards Rs 0 and adds cash to ${toWallet?.name}`
+                            : (!isDebtAccount(fromWallet) && isDebtAccount(toWallet))
+                            ? `Lends to ${toWallet?.name} and increases their debt balance`
+                            : 'Settles negative balance towards Rs 0'
+                          : 'Normal transfer: takes out of source and adds to destination'}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsDebtSettlement(!isDebtSettlement)}
+                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
+                      isDebtSettlement ? 'bg-emerald-600' : 'bg-slate-300'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                        isDebtSettlement ? 'translate-x-4' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
                 </div>
               </div>
             </div>
@@ -386,12 +458,22 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
               type="submit"
               className={`flex items-center gap-1.5 px-5 py-2.5 rounded-xl font-bold text-xs text-white shadow-sm transition-all cursor-pointer ${
                 type === 'transfer'
-                  ? 'bg-indigo-600 hover:bg-indigo-700'
+                  ? isDebtSettlement
+                    ? 'bg-emerald-600 hover:bg-emerald-700'
+                    : 'bg-indigo-600 hover:bg-indigo-700'
                   : 'bg-amber-500 hover:bg-amber-600'
               }`}
             >
               <Check size={16} strokeWidth={2.5} />
-              <span>{editingTransaction ? 'Update Entry' : type === 'transfer' ? 'Transfer Funds' : 'Save Entry'}</span>
+              <span>
+                {editingTransaction
+                  ? 'Update Entry'
+                  : type === 'transfer'
+                  ? isDebtSettlement
+                    ? 'Settle Debt & Transfer'
+                    : 'Transfer Funds'
+                  : 'Save Entry'}
+              </span>
             </button>
           </div>
         </form>
