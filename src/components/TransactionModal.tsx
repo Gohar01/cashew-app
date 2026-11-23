@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, Check, ArrowRightLeft } from 'lucide-react';
 import { Transaction, Category, Wallet, TransactionType } from '../types';
 import { isDebtAccount, isDebtSettlementTx, getDebtTransferType } from '../utils/debt';
+import { SearchableSelect, SearchableSelectOption } from './SearchableSelect';
 
 interface TransactionModalProps {
   isOpen: boolean;
@@ -85,6 +86,35 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
 
   const filteredCategories = categories.filter((c) => c.type === (type === 'income' ? 'income' : 'expense'));
   const selectedCategory = categories.find((c) => c.id === categoryId) || filteredCategories[0];
+
+  const categoryOptions = useMemo<SearchableSelectOption[]>(() => {
+    return filteredCategories.map((c) => ({
+      value: c.id,
+      label: c.name,
+      icon: c.icon,
+      color: c.color,
+    }));
+  }, [filteredCategories]);
+
+  const walletOptions = useMemo<SearchableSelectOption[]>(() => {
+    return wallets.map((w) => ({
+      value: w.id,
+      label: w.name,
+      subLabel: `${currencySymbol}${w.balance.toLocaleString('en-US', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      })}`,
+      icon: w.icon || 'Wallet',
+      color: w.color,
+    }));
+  }, [wallets, currencySymbol]);
+
+  const toWalletOptions = useMemo<SearchableSelectOption[]>(() => {
+    return walletOptions.map((opt) => ({
+      ...opt,
+      disabled: opt.value === walletId,
+    }));
+  }, [walletOptions, walletId]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -250,46 +280,31 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                 </span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-bold text-indigo-950 uppercase tracking-wider mb-1">
-                    From Account
-                  </label>
-                  <select
-                    value={walletId}
-                    onChange={(e) => {
-                      const newFrom = e.target.value;
-                      setWalletId(newFrom);
-                      if (toWalletId === newFrom) {
-                        const alt = wallets.find((w) => w.id !== newFrom);
-                        if (alt) setToWalletId(alt.id);
-                      }
-                    }}
-                    className="w-full text-xs font-semibold px-3 py-2.5 bg-white border border-indigo-200 rounded-xl focus:outline-hidden cursor-pointer shadow-2xs"
-                  >
-                    {wallets.map((w) => (
-                      <option key={w.id} value={w.id}>
-                        {w.name} ({currencySymbol}{w.balance.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })})
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <SearchableSelect
+                  label="From Account"
+                  options={walletOptions}
+                  value={walletId}
+                  onChange={(newFrom) => {
+                    setWalletId(newFrom);
+                    if (toWalletId === newFrom) {
+                      const alt = wallets.find((w) => w.id !== newFrom);
+                      if (alt) setToWalletId(alt.id);
+                    }
+                  }}
+                  placeholder="Select source account..."
+                  searchPlaceholder="Search account / wallet..."
+                  buttonClassName="bg-white border-indigo-200"
+                />
 
-                <div>
-                  <label className="block text-[11px] font-bold text-indigo-950 uppercase tracking-wider mb-1">
-                    To Account
-                  </label>
-                  <select
-                    value={toWalletId}
-                    onChange={(e) => setToWalletId(e.target.value)}
-                    className="w-full text-xs font-semibold px-3 py-2.5 bg-white border border-indigo-200 rounded-xl focus:outline-hidden cursor-pointer shadow-2xs"
-                  >
-                    {wallets.map((w) => (
-                      <option key={w.id} value={w.id} disabled={w.id === walletId}>
-                        {w.name} ({currencySymbol}{w.balance.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })})
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <SearchableSelect
+                  label="To Account"
+                  options={toWalletOptions}
+                  value={toWalletId}
+                  onChange={setToWalletId}
+                  placeholder="Select destination account..."
+                  searchPlaceholder="Search account / wallet..."
+                  buttonClassName="bg-white border-indigo-200"
+                />
               </div>
 
               {/* Debt / Loan Routing Information Card */}
@@ -339,39 +354,23 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
           ) : (
             /* Category & Wallet Dropdowns */
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Category
-                </label>
-                <select
-                  value={categoryId}
-                  onChange={(e) => setCategoryId(e.target.value)}
-                  className="w-full text-xs font-semibold px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden cursor-pointer"
-                >
-                  {filteredCategories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <SearchableSelect
+                label="Category"
+                options={categoryOptions}
+                value={categoryId}
+                onChange={setCategoryId}
+                placeholder="Select category..."
+                searchPlaceholder="Search category..."
+              />
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Account / Wallet
-                </label>
-                <select
-                  value={walletId}
-                  onChange={(e) => setWalletId(e.target.value)}
-                  className="w-full text-xs font-semibold px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden cursor-pointer"
-                >
-                  {wallets.map((w) => (
-                    <option key={w.id} value={w.id}>
-                      {w.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <SearchableSelect
+                label="Account / Wallet"
+                options={walletOptions}
+                value={walletId}
+                onChange={setWalletId}
+                placeholder="Select account..."
+                searchPlaceholder="Search account / wallet..."
+              />
             </div>
           )}
 
