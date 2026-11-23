@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Check, ArrowRightLeft } from 'lucide-react';
 import { Transaction, Category, Wallet, TransactionType } from '../types';
-import { isDebtAccount, isDebtSettlementTx } from '../utils/debt';
+import { isDebtAccount, isDebtSettlementTx, getDebtTransferType } from '../utils/debt';
 
 interface TransactionModalProps {
   isOpen: boolean;
@@ -79,14 +79,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
 
   const fromWallet = wallets.find((w) => w.id === walletId);
   const toWallet = wallets.find((w) => w.id === toWalletId);
-
-  // Auto-detect debt settlement when switching wallets in new transfer
-  useEffect(() => {
-    if (!editingTransaction && type === 'transfer') {
-      const hasDebt = isDebtAccount(fromWallet) || isDebtAccount(toWallet);
-      setIsDebtSettlement(hasDebt);
-    }
-  }, [type, walletId, toWalletId, editingTransaction]);
+  const debtType = getDebtTransferType(fromWallet, toWallet);
 
   if (!isOpen) return null;
 
@@ -122,14 +115,18 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
       : (selectedCategory?.name || 'Untitled');
 
     const finalTitle = title.trim() || defaultTitle;
-    const defaultNote = type === 'transfer'
-      ? (isDebtSettlement
-          ? `[Debt Settlement]\nTransferred Balance\n${fromWallet?.name} → ${toWallet?.name}`
-          : `Transferred Balance\n${fromWallet?.name} → ${toWallet?.name}`)
-      : '';
-    let finalNote = note.trim() || defaultNote;
-    if (type === 'transfer' && isDebtSettlement && !finalNote.includes('[Debt Settlement]')) {
-      finalNote = `[Debt Settlement] ${finalNote}`;
+    let finalNote = note.trim();
+    if (type === 'transfer') {
+      if (debtType === 'loan') {
+        const defaultNote = `[Loan Given]\nTransferred Balance\n${fromWallet?.name} → ${toWallet?.name}`;
+        finalNote = finalNote ? (finalNote.includes('[Loan Given]') ? finalNote : `[Loan Given] ${finalNote}`) : defaultNote;
+      } else if (debtType === 'repayment') {
+        const defaultNote = `[Debt Settlement]\nTransferred Balance\n${fromWallet?.name} → ${toWallet?.name}`;
+        finalNote = finalNote ? (finalNote.includes('[Debt Settlement]') ? finalNote : `[Debt Settlement] ${finalNote}`) : defaultNote;
+      } else {
+        const defaultNote = `Transferred Balance\n${fromWallet?.name} → ${toWallet?.name}`;
+        finalNote = finalNote || defaultNote;
+      }
     }
 
     onSave({
@@ -144,7 +141,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
       time,
       createdAt: createdTimestamp,
       note: finalNote,
-      isDebtSettlement: type === 'transfer' ? isDebtSettlement : false,
+      isDebtSettlement: type === 'transfer' ? (debtType !== 'standard') : false,
     });
     onClose();
   };
@@ -295,48 +292,47 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                 </div>
               </div>
 
-              {/* Debt Settlement Toggle Card */}
-              <div className={`p-2.5 rounded-xl border transition-all ${
-                isDebtSettlement
-                  ? 'bg-emerald-50/90 border-emerald-200'
-                  : 'bg-white/80 border-indigo-100'
-              }`}>
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-sm shrink-0">{isDebtSettlement ? '🤝' : '⇄'}</span>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-bold text-slate-800">Debt / Lent Settlement</span>
-                        {isDebtSettlement && (
-                          <span className="text-[9px] bg-emerald-600 text-white font-extrabold px-1.5 py-0.5 rounded-md uppercase tracking-wider">
-                            Active
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[10px] text-slate-500 truncate mt-0.5">
-                        {isDebtSettlement
-                          ? (isDebtAccount(fromWallet) && !isDebtAccount(toWallet))
-                            ? `Settles ${fromWallet?.name}'s debt towards Rs 0 and adds cash to ${toWallet?.name}`
-                            : (!isDebtAccount(fromWallet) && isDebtAccount(toWallet))
-                            ? `Lends to ${toWallet?.name} and increases their debt balance`
-                            : 'Settles negative balance towards Rs 0'
-                          : 'Normal transfer: takes out of source and adds to destination'}
-                      </p>
+              {/* Debt / Loan Routing Information Card */}
+              <div
+                className={`p-2.5 rounded-xl border transition-all ${
+                  debtType === 'loan'
+                    ? 'bg-purple-50/90 border-purple-200 text-purple-950'
+                    : debtType === 'repayment'
+                    ? 'bg-emerald-50/90 border-emerald-200 text-emerald-950'
+                    : 'bg-white/80 border-indigo-100 text-slate-700'
+                }`}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-base shrink-0">
+                    {debtType === 'loan' ? '💸' : debtType === 'repayment' ? '🤝' : '⇄'}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-bold">
+                        {debtType === 'loan'
+                          ? 'Giving Loan / Lending Money'
+                          : debtType === 'repayment'
+                          ? 'Loan Repayment Received'
+                          : 'Account Transfer'}
+                      </span>
+                      {debtType !== 'standard' && (
+                        <span
+                          className={`text-[9px] text-white font-extrabold px-1.5 py-0.5 rounded-md uppercase tracking-wider ${
+                            debtType === 'loan' ? 'bg-purple-600' : 'bg-emerald-600'
+                          }`}
+                        >
+                          {debtType === 'loan' ? 'LOAN GIVEN' : 'SETTLEMENT'}
+                        </span>
+                      )}
                     </div>
+                    <p className="text-[10px] text-slate-600 truncate mt-0.5">
+                      {debtType === 'loan'
+                        ? `Deducts from ${fromWallet?.name || 'Bank'} and increases ${toWallet?.name || 'Contact'}'s loan balance (more negative)`
+                        : debtType === 'repayment'
+                        ? `Receives into ${toWallet?.name || 'Account'} and settles ${fromWallet?.name || 'Contact'}'s debt towards Rs 0`
+                        : `Transfers funds directly from ${fromWallet?.name || 'Source'} to ${toWallet?.name || 'Destination'}`}
+                    </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsDebtSettlement(!isDebtSettlement)}
-                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
-                      isDebtSettlement ? 'bg-emerald-600' : 'bg-slate-300'
-                    }`}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
-                        isDebtSettlement ? 'translate-x-4' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
                 </div>
               </div>
             </div>
@@ -462,7 +458,9 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
               type="submit"
               className={`flex items-center gap-1.5 px-5 py-2.5 rounded-xl font-bold text-xs text-white shadow-sm transition-all cursor-pointer ${
                 type === 'transfer'
-                  ? isDebtSettlement
+                  ? debtType === 'loan'
+                    ? 'bg-purple-600 hover:bg-purple-700'
+                    : debtType === 'repayment'
                     ? 'bg-emerald-600 hover:bg-emerald-700'
                     : 'bg-indigo-600 hover:bg-indigo-700'
                   : 'bg-amber-500 hover:bg-amber-600'
@@ -473,7 +471,9 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                 {editingTransaction
                   ? 'Update Entry'
                   : type === 'transfer'
-                  ? isDebtSettlement
+                  ? debtType === 'loan'
+                    ? 'Give Loan & Transfer'
+                    : debtType === 'repayment'
                     ? 'Settle Debt & Transfer'
                     : 'Transfer Funds'
                   : 'Save Entry'}

@@ -50,21 +50,55 @@ export function isDebtAccount(wallet?: Wallet | null): boolean {
   if (!wallet) return false;
   if (wallet.isDebt === true) return true;
   if (KNOWN_DEBT_ACCOUNTS.has(wallet.id)) return true;
-  // If it's classified as 'other' and has a negative balance or is a contact
-  if (wallet.type === 'other' && wallet.balance < 0 && wallet.id !== 'wal-charity') {
+  // If it's classified as 'other' and has a negative balance or is a contact (excluding Charity)
+  if (wallet.type === 'other' && wallet.id !== 'wal-charity' && (wallet.balance < 0 || KNOWN_DEBT_ACCOUNTS.has(wallet.id))) {
     return true;
   }
   return false;
 }
 
 /**
- * Returns true if a transaction represents a debt / lent settlement.
+ * Returns the nature of the transfer between two wallets.
  */
-export function isDebtSettlementTx(tx: Transaction): boolean {
+export function getDebtTransferType(
+  fromWallet?: Wallet | null,
+  toWallet?: Wallet | null
+): 'repayment' | 'loan' | 'standard' {
+  const sourceIsDebt = isDebtAccount(fromWallet);
+  const destIsDebt = isDebtAccount(toWallet);
+
+  if (sourceIsDebt && !destIsDebt) return 'repayment'; // Person pays back -> Cash/Bank
+  if (!sourceIsDebt && destIsDebt) return 'loan';      // Bank/Cash -> Person (Loan Given)
+  return 'standard';
+}
+
+/**
+ * Returns true if a transaction represents a debt / lent settlement or loan given.
+ */
+export function isDebtSettlementTx(tx: Transaction, wallets?: Wallet[]): boolean {
   if (tx.isDebtSettlement === true) return true;
-  if (tx.note && (tx.note.includes('[Debt Settlement]') || tx.note.includes('Debt Repaid') || tx.note.includes('Settled Debt'))) {
+  if (
+    tx.note &&
+    (tx.note.includes('[Debt Settlement]') ||
+      tx.note.includes('[Loan Given]') ||
+      tx.note.includes('Debt Repaid') ||
+      tx.note.includes('Settled Debt') ||
+      tx.note.includes('Loan'))
+  ) {
     return true;
   }
+
+  // Automatic detection based on wallet ids
+  if (tx.type === 'transfer' && tx.toWalletId) {
+    const fromW = wallets?.find((w) => w.id === tx.walletId);
+    const toW = wallets?.find((w) => w.id === tx.toWalletId);
+    const sourceIsDebt = wallets ? isDebtAccount(fromW) : KNOWN_DEBT_ACCOUNTS.has(tx.walletId);
+    const destIsDebt = wallets ? isDebtAccount(toW) : KNOWN_DEBT_ACCOUNTS.has(tx.toWalletId || '');
+    if (sourceIsDebt || destIsDebt) {
+      return true;
+    }
+  }
+
   return false;
 }
 
@@ -79,53 +113,42 @@ export function getTxBalanceDelta(
   wallets?: Wallet[]
 ): number {
   const isTransfer = tx.type === 'transfer' && Boolean(tx.toWalletId);
-  const isDebt = isDebtSettlementTx(tx);
 
   if (isTransfer) {
-    if (isDebt) {
-      // Find whether source or destination is the debt account
-      const sourceIsDebt = wallets
-        ? isDebtAccount(wallets.find((w) => w.id === tx.walletId))
-        : KNOWN_DEBT_ACCOUNTS.has(tx.walletId);
-      const destIsDebt = wallets
-        ? isDebtAccount(wallets.find((w) => w.id === tx.toWalletId))
-        : KNOWN_DEBT_ACCOUNTS.has(tx.toWalletId || '');
+    const fromW = wallets?.find((w) => w.id === tx.walletId);
+    const toW = wallets?.find((w) => w.id === tx.toWalletId);
+    const sourceIsDebt = wallets ? isDebtAccount(fromW) : KNOWN_DEBT_ACCOUNTS.has(tx.walletId);
+    const destIsDebt = wallets ? isDebtAccount(toW) : KNOWN_DEBT_ACCOUNTS.has(tx.toWalletId || '');
 
-      // Case A: Debt Repayment (Debtor pays back into Cash/Bank)
-      // e.g. From: Mom (Debt), To: Cash (Asset)
-      if (sourceIsDebt && !destIsDebt) {
-        if (targetWalletId === tx.walletId) {
-          // Debt is cleared towards 0 (+amount)
-          return tx.amount;
-        }
-        if (targetWalletId === tx.toWalletId) {
-          // Cash is received (+amount)
-          return tx.amount;
-        }
-        return 0;
+    // Case A: Debt Repayment (Debtor pays back into Cash/Bank)
+    // e.g. From: Mom (Debt), To: Cash (Asset)
+    if (sourceIsDebt && !destIsDebt) {
+      if (targetWalletId === tx.walletId) {
+        // Debt is cleared towards 0 (+amount)
+        return tx.amount;
       }
-
-      // Case B: Lending Money / Paying on behalf of person
-      // e.g. From: Cash (Asset), To: Mom (Debt)
-      if (!sourceIsDebt && destIsDebt) {
-        if (targetWalletId === tx.walletId) {
-          // Cash spent (-amount)
-          return -tx.amount;
-        }
-        if (targetWalletId === tx.toWalletId) {
-          // Debt increases into negative (-amount)
-          return -tx.amount;
-        }
-        return 0;
+      if (targetWalletId === tx.toWalletId) {
+        // Cash is received (+amount)
+        return tx.amount;
       }
-
-      // Fallback: If both or neither, debtor source gets +amount, dest gets +amount
-      if (targetWalletId === tx.walletId) return tx.amount;
-      if (targetWalletId === tx.toWalletId) return tx.amount;
       return 0;
     }
 
-    // Standard transfer: Source loses (-amount), Destination gains (+amount)
+    // Case B: Lending Money / Paying on behalf of person / Giving Loan
+    // e.g. From: Meezan (Asset/Bank), To: Waheed Build (Debt/Person)
+    if (!sourceIsDebt && destIsDebt) {
+      if (targetWalletId === tx.walletId) {
+        // Bank funds spent (-amount)
+        return -tx.amount;
+      }
+      if (targetWalletId === tx.toWalletId) {
+        // Loan balance INCREASES into negative (-amount)
+        return -tx.amount;
+      }
+      return 0;
+    }
+
+    // Case C: Standard transfer between normal accounts (e.g. Meezan -> Cash)
     if (targetWalletId === tx.walletId) {
       return -tx.amount;
     }

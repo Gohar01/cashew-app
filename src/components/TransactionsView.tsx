@@ -9,7 +9,7 @@ import {
 import { Transaction, Category, Wallet, TransactionType } from '../types';
 import { CategoryIcon } from './CategoryIcon';
 import { formatTransactionTime, formatTransactionDate } from '../utils/date';
-import { isDebtSettlementTx } from '../utils/debt';
+import { isDebtSettlementTx, isDebtAccount } from '../utils/debt';
 
 interface TransactionsViewProps {
   transactions: Transaction[];
@@ -198,7 +198,8 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
               const toWal = tx.toWalletId ? walletMap.get(tx.toWalletId) : null;
               const isIncome = tx.type === 'income';
               const isTransfer = tx.type === 'transfer';
-              const isDebt = isDebtSettlementTx(tx);
+              const isLoanGiven = isTransfer && Boolean(tx.note?.includes('[Loan Given]') || (!isDebtAccount(wal) && isDebtAccount(toWal)));
+              const isLoanRepaid = isTransfer && Boolean(tx.note?.includes('[Debt Settlement]') || (isDebtAccount(wal) && !isDebtAccount(toWal)));
 
               return (
                 <div
@@ -207,8 +208,8 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                 >
                   <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                     <CategoryIcon
-                      name={isDebt ? 'Handshake' : isTransfer ? 'ArrowRightLeft' : (cat?.icon || 'Tag')}
-                      color={isDebt ? '#059669' : isTransfer ? '#4f46e5' : (cat?.color || (isIncome ? '#10b981' : '#f59e0b'))}
+                      name={isLoanGiven || isLoanRepaid ? 'Handshake' : isTransfer ? 'ArrowRightLeft' : (cat?.icon || 'Tag')}
+                      color={isLoanGiven ? '#9333ea' : isLoanRepaid ? '#059669' : isTransfer ? '#4f46e5' : (cat?.color || (isIncome ? '#10b981' : '#f59e0b'))}
                       size={20}
                     />
                     <div className="min-w-0">
@@ -217,13 +218,21 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                           {tx.title}
                         </span>
                         <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${
-                          isDebt
+                          isLoanGiven
+                            ? 'bg-purple-50 text-purple-700 border border-purple-200/50'
+                            : isLoanRepaid
                             ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/50'
                             : isTransfer
                             ? 'bg-indigo-50 text-indigo-700'
                             : 'bg-slate-100 text-slate-600'
                         }`}>
-                          {isDebt ? '🤝 Debt Settled' : isTransfer ? 'Transfer' : (cat?.name || 'Category')}
+                          {isLoanGiven
+                            ? '💸 Loan Given'
+                            : isLoanRepaid
+                            ? '🤝 Loan Repaid'
+                            : isTransfer
+                            ? 'Transfer'
+                            : (cat?.name || 'Category')}
                         </span>
                       </div>
                       <div className="text-xs text-slate-400 flex items-center gap-1.5 sm:gap-2 mt-1 truncate">
@@ -251,13 +260,13 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                     <div className="text-right">
                       <div
                         className={`text-base font-black ${
-                          isIncome ? 'text-emerald-600' : isTransfer ? 'text-indigo-600' : 'text-slate-900'
+                          isIncome || isLoanRepaid ? 'text-emerald-600' : isLoanGiven ? 'text-purple-600' : isTransfer ? 'text-indigo-600' : 'text-slate-900'
                         }`}
                       >
-                        {isIncome ? '+' : isTransfer ? '⇄ ' : '-'}{currencySymbol}{tx.amount.toFixed(2)}
+                        {isIncome || isLoanRepaid ? '+' : isLoanGiven ? '-' : isTransfer ? '⇄ ' : '-'}{currencySymbol}{tx.amount.toFixed(2)}
                       </div>
                       <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
-                        {tx.type}
+                        {isLoanGiven ? 'Loan' : isLoanRepaid ? 'Repaid' : tx.type}
                       </div>
                     </div>
 

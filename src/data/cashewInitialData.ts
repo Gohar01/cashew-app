@@ -520,7 +520,7 @@ export const CASHEW_WALLETS: Wallet[] = [
   {
     "id": "wal-waheed-build",
     "name": "Waheed Build",
-    "balance": -346214.01,
+    "balance": -376214.01,
     "currency": "PKR",
     "color": "#a855f7",
     "icon": "Wallet",

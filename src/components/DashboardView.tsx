@@ -11,7 +11,7 @@ import {
 import { Transaction, Category, Wallet, Budget, ActiveTab } from '../types';
 import { CategoryIcon } from './CategoryIcon';
 import { formatTransactionTime, formatTransactionDate } from '../utils/date';
-import { isDebtSettlementTx } from '../utils/debt';
+import { isDebtSettlementTx, isDebtAccount } from '../utils/debt';
 
 interface DashboardViewProps {
   transactions: Transaction[];
@@ -322,14 +322,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               const toWal = tx.toWalletId ? walletMap.get(tx.toWalletId) : null;
               const isIncome = tx.type === 'income';
               const isTransfer = tx.type === 'transfer';
-              const isDebt = isDebtSettlementTx(tx);
+              const isLoanGiven = isTransfer && Boolean(tx.note?.includes('[Loan Given]') || (!isDebtAccount(wal) && isDebtAccount(toWal)));
+              const isLoanRepaid = isTransfer && Boolean(tx.note?.includes('[Debt Settlement]') || (isDebtAccount(wal) && !isDebtAccount(toWal)));
 
               return (
                 <div key={tx.id} className="py-3.5 flex items-center justify-between gap-3 first:pt-0 last:pb-0">
                   <div className="flex items-center gap-3 min-w-0">
                     <CategoryIcon
-                      name={isDebt ? 'Handshake' : isTransfer ? 'ArrowRightLeft' : (cat?.icon || 'Tag')}
-                      color={isDebt ? '#059669' : isTransfer ? '#4f46e5' : (cat?.color || (isIncome ? '#10b981' : '#f59e0b'))}
+                      name={isLoanGiven || isLoanRepaid ? 'Handshake' : isTransfer ? 'ArrowRightLeft' : (cat?.icon || 'Tag')}
+                      color={isLoanGiven ? '#9333ea' : isLoanRepaid ? '#059669' : isTransfer ? '#4f46e5' : (cat?.color || (isIncome ? '#10b981' : '#f59e0b'))}
                       size={18}
                     />
                     <div className="min-w-0">
@@ -360,13 +361,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <div className="text-right shrink-0">
                     <div
                       className={`text-sm font-black ${
-                        isIncome ? 'text-emerald-600' : isDebt ? 'text-emerald-600' : isTransfer ? 'text-indigo-600' : 'text-slate-900'
+                        isIncome || isLoanRepaid ? 'text-emerald-600' : isLoanGiven ? 'text-purple-600' : isTransfer ? 'text-indigo-600' : 'text-slate-900'
                       }`}
                     >
-                      {isIncome ? '+' : isDebt ? '🤝 ' : isTransfer ? '⇄ ' : '-'}{currencySymbol}{tx.amount.toFixed(2)}
+                      {isIncome || isLoanRepaid ? '+' : isLoanGiven ? '-' : isTransfer ? '⇄ ' : '-'}{currencySymbol}{tx.amount.toFixed(2)}
                     </div>
                     <div className="text-[10px] text-slate-600 font-medium capitalize">
-                      {isDebt ? 'Debt Settled' : tx.type}
+                      {isLoanGiven ? 'Loan Given' : isLoanRepaid ? 'Repaid' : tx.type}
                     </div>
                   </div>
                 </div>
