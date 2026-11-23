@@ -318,14 +318,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             {recentTransactions.map((tx) => {
               const cat = categoryMap.get(tx.categoryId);
               const wal = walletMap.get(tx.walletId);
+              const toWal = tx.toWalletId ? walletMap.get(tx.toWalletId) : null;
               const isIncome = tx.type === 'income';
+              const isTransfer = tx.type === 'transfer';
 
               return (
                 <div key={tx.id} className="py-3.5 flex items-center justify-between gap-3 first:pt-0 last:pb-0">
                   <div className="flex items-center gap-3 min-w-0">
                     <CategoryIcon
-                      name={cat?.icon || 'Tag'}
-                      color={cat?.color || (isIncome ? '#10b981' : '#f59e0b')}
+                      name={isTransfer ? 'ArrowRightLeft' : (cat?.icon || 'Tag')}
+                      color={isTransfer ? '#4f46e5' : (cat?.color || (isIncome ? '#10b981' : '#f59e0b'))}
                       size={18}
                     />
                     <div className="min-w-0">
@@ -340,7 +342,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           </span>
                         )}
                         <span>•</span>
-                        <span className="font-medium text-slate-600">{wal?.name || 'Wallet'}</span>
+                        <span className="font-medium text-slate-600">
+                          {isTransfer && toWal ? `${wal?.name || 'Wallet'} → ${toWal.name}` : (wal?.name || 'Wallet')}
+                        </span>
                         {tx.note && (
                           <>
                             <span>•</span>
@@ -354,10 +358,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <div className="text-right shrink-0">
                     <div
                       className={`text-sm font-black ${
-                        isIncome ? 'text-emerald-600' : 'text-slate-900'
+                        isIncome ? 'text-emerald-600' : isTransfer ? 'text-indigo-600' : 'text-slate-900'
                       }`}
                     >
-                      {isIncome ? '+' : '-'}{currencySymbol}{tx.amount.toFixed(2)}
+                      {isIncome ? '+' : isTransfer ? '⇄ ' : '-'}{currencySymbol}{tx.amount.toFixed(2)}
                     </div>
                     <div className="text-[10px] text-slate-600 font-medium capitalize">
                       {tx.type}

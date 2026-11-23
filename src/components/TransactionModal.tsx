@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Check } from 'lucide-react';
+import { X, Check, ArrowRightLeft } from 'lucide-react';
 import { Transaction, Category, Wallet, TransactionType } from '../types';
 
 interface TransactionModalProps {
@@ -28,6 +28,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
   const [amount, setAmount] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [walletId, setWalletId] = useState('');
+  const [toWalletId, setToWalletId] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [time, setTime] = useState(() => {
     const now = new Date();
@@ -44,6 +45,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
       setAmount(editingTransaction.amount.toString());
       setCategoryId(editingTransaction.categoryId);
       setWalletId(editingTransaction.walletId);
+      setToWalletId(editingTransaction.toWalletId || '');
       setDate(editingTransaction.date);
       if (editingTransaction.createdAt) {
         const d = new Date(editingTransaction.createdAt);
@@ -56,7 +58,10 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
       setAmount('');
       const defaultCat = categories.find((c) => c.type === 'expense');
       setCategoryId(defaultCat ? defaultCat.id : (categories[0]?.id || ''));
-      setWalletId(defaultWalletId || wallets[0]?.id || '');
+      const initialWalletId = defaultWalletId || wallets[0]?.id || '';
+      setWalletId(initialWalletId);
+      const otherWallet = wallets.find((w) => w.id !== initialWalletId);
+      setToWalletId(otherWallet?.id || wallets[1]?.id || '');
       setDate(new Date().toISOString().split('T')[0]);
       const now = new Date();
       setTime(`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`);
@@ -68,11 +73,20 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
 
   const filteredCategories = categories.filter((c) => c.type === (type === 'income' ? 'income' : 'expense'));
   const selectedCategory = categories.find((c) => c.id === categoryId) || filteredCategories[0];
+  const fromWallet = wallets.find((w) => w.id === walletId);
+  const toWallet = wallets.find((w) => w.id === toWalletId);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const numAmount = parseFloat(amount);
     if (isNaN(numAmount) || numAmount <= 0) return;
+
+    if (type === 'transfer') {
+      if (!toWalletId || walletId === toWalletId) {
+        alert('Please select two different accounts for the transfer (From and To).');
+        return;
+      }
+    }
 
     let createdTimestamp = editingTransaction?.createdAt || Date.now();
     if (date && time) {
@@ -84,19 +98,28 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
       }
     }
 
-    const finalTitle = title.trim() || selectedCategory?.name || 'Untitled';
+    const transferCategory = categories.find((c) => c.id === 'cat-balance-correction') || categories[0];
+    const activeCategory = type === 'transfer' ? transferCategory : selectedCategory;
+    const defaultTitle = type === 'transfer'
+      ? `${fromWallet?.name || 'Account'} → ${toWallet?.name || 'Account'}`
+      : (selectedCategory?.name || 'Untitled');
+
+    const finalTitle = title.trim() || defaultTitle;
+    const defaultNote = type === 'transfer' ? `Transferred Balance\n${fromWallet?.name} → ${toWallet?.name}` : '';
+    const finalNote = note.trim() || defaultNote;
 
     onSave({
       id: editingTransaction ? editingTransaction.id : undefined,
       type,
       title: finalTitle,
       amount: numAmount,
-      categoryId: categoryId || filteredCategories[0]?.id || 'cat-other-exp',
+      categoryId: activeCategory?.id || 'cat-balance-correction',
       walletId: walletId || wallets[0]?.id || 'wal-main',
+      toWalletId: type === 'transfer' ? toWalletId : undefined,
       date,
       time,
       createdAt: createdTimestamp,
-      note: note.trim(),
+      note: finalNote,
     });
     onClose();
   };
@@ -120,7 +143,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {/* Type Toggle Pills */}
-          <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-2xl text-xs font-bold">
+          <div className="grid grid-cols-3 p-1 bg-slate-100 rounded-2xl text-xs font-bold gap-1">
             <button
               type="button"
               onClick={() => {
@@ -151,12 +174,30 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
             >
               Income
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                setType('transfer');
+                if (!toWalletId || toWalletId === walletId) {
+                  const otherWallet = wallets.find((w) => w.id !== walletId);
+                  if (otherWallet) setToWalletId(otherWallet.id);
+                }
+              }}
+              className={`py-2 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                type === 'transfer'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <ArrowRightLeft size={13} strokeWidth={2.5} />
+              <span>Transfer</span>
+            </button>
           </div>
 
           {/* Amount Input */}
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-              Amount ({currencySymbol})
+              {type === 'transfer' ? 'Transfer Amount' : 'Amount'} ({currencySymbol})
             </label>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl font-bold text-slate-400">
@@ -175,6 +216,95 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
             </div>
           </div>
 
+          {/* Account / Category Selection */}
+          {type === 'transfer' ? (
+            <div className="space-y-2 p-3.5 bg-indigo-50/70 border border-indigo-100 rounded-2xl">
+              <div className="flex items-center justify-between text-[11px] font-black text-indigo-900 uppercase tracking-wider">
+                <span>Transfer Routing</span>
+                <span className="text-indigo-600 font-semibold normal-case">Deducts from source, adds to destination</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-indigo-950 uppercase tracking-wider mb-1">
+                    From Account
+                  </label>
+                  <select
+                    value={walletId}
+                    onChange={(e) => {
+                      const newFrom = e.target.value;
+                      setWalletId(newFrom);
+                      if (toWalletId === newFrom) {
+                        const alt = wallets.find((w) => w.id !== newFrom);
+                        if (alt) setToWalletId(alt.id);
+                      }
+                    }}
+                    className="w-full text-xs font-semibold px-3 py-2.5 bg-white border border-indigo-200 rounded-xl focus:outline-hidden cursor-pointer shadow-2xs"
+                  >
+                    {wallets.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.name} ({currencySymbol}{w.balance.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-indigo-950 uppercase tracking-wider mb-1">
+                    To Account
+                  </label>
+                  <select
+                    value={toWalletId}
+                    onChange={(e) => setToWalletId(e.target.value)}
+                    className="w-full text-xs font-semibold px-3 py-2.5 bg-white border border-indigo-200 rounded-xl focus:outline-hidden cursor-pointer shadow-2xs"
+                  >
+                    {wallets.map((w) => (
+                      <option key={w.id} value={w.id} disabled={w.id === walletId}>
+                        {w.name} ({currencySymbol}{w.balance.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* Category & Wallet Dropdowns */
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Category
+                </label>
+                <select
+                  value={categoryId}
+                  onChange={(e) => setCategoryId(e.target.value)}
+                  className="w-full text-xs font-semibold px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden cursor-pointer"
+                >
+                  {filteredCategories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Account / Wallet
+                </label>
+                <select
+                  value={walletId}
+                  onChange={(e) => setWalletId(e.target.value)}
+                  className="w-full text-xs font-semibold px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden cursor-pointer"
+                >
+                  {wallets.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
           {/* Title Input */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
@@ -187,48 +317,17 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
             </div>
             <input
               type="text"
-              placeholder={selectedCategory ? `e.g. ${selectedCategory.name}` : "e.g. Trader Joe's, Gas, Salary"}
+              placeholder={
+                type === 'transfer'
+                  ? `e.g. ${fromWallet?.name || 'From'} → ${toWallet?.name || 'To'}`
+                  : selectedCategory
+                  ? `e.g. ${selectedCategory.name}`
+                  : "e.g. Trader Joe's, Gas, Salary"
+              }
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full text-sm font-semibold px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
             />
-          </div>
-
-          {/* Category & Wallet Dropdowns */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                Category
-              </label>
-              <select
-                value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-                className="w-full text-xs font-semibold px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden cursor-pointer"
-              >
-                {filteredCategories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                Account / Wallet
-              </label>
-              <select
-                value={walletId}
-                onChange={(e) => setWalletId(e.target.value)}
-                className="w-full text-xs font-semibold px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden cursor-pointer"
-              >
-                {wallets.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.name}
-                  </option>
-                ))}
-              </select>
-            </div>
           </div>
 
           {/* Date & Time */}
@@ -285,10 +384,14 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
             </button>
             <button
               type="submit"
-              className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl font-bold text-xs bg-amber-500 hover:bg-amber-600 text-white shadow-sm transition-all cursor-pointer"
+              className={`flex items-center gap-1.5 px-5 py-2.5 rounded-xl font-bold text-xs text-white shadow-sm transition-all cursor-pointer ${
+                type === 'transfer'
+                  ? 'bg-indigo-600 hover:bg-indigo-700'
+                  : 'bg-amber-500 hover:bg-amber-600'
+              }`}
             >
               <Check size={16} strokeWidth={2.5} />
-              <span>{editingTransaction ? 'Update Entry' : 'Save Entry'}</span>
+              <span>{editingTransaction ? 'Update Entry' : type === 'transfer' ? 'Transfer Funds' : 'Save Entry'}</span>
             </button>
           </div>
         </form>

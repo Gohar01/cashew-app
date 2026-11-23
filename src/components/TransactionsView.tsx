@@ -194,7 +194,9 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
             {displayTransactions.map((tx) => {
               const cat = categoryMap.get(tx.categoryId);
               const wal = walletMap.get(tx.walletId);
+              const toWal = tx.toWalletId ? walletMap.get(tx.toWalletId) : null;
               const isIncome = tx.type === 'income';
+              const isTransfer = tx.type === 'transfer';
 
               return (
                 <div
@@ -203,8 +205,8 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                 >
                   <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                     <CategoryIcon
-                      name={cat?.icon || 'Tag'}
-                      color={cat?.color || (isIncome ? '#10b981' : '#f59e0b')}
+                      name={isTransfer ? 'ArrowRightLeft' : (cat?.icon || 'Tag')}
+                      color={isTransfer ? '#4f46e5' : (cat?.color || (isIncome ? '#10b981' : '#f59e0b'))}
                       size={20}
                     />
                     <div className="min-w-0">
@@ -212,8 +214,10 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                         <span className="font-bold text-slate-900 text-sm truncate">
                           {tx.title}
                         </span>
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 shrink-0">
-                          {cat?.name || 'Category'}
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${
+                          isTransfer ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-100 text-slate-600'
+                        }`}>
+                          {isTransfer ? 'Transfer' : (cat?.name || 'Category')}
                         </span>
                       </div>
                       <div className="text-xs text-slate-400 flex items-center gap-1.5 sm:gap-2 mt-1 truncate">
@@ -224,7 +228,9 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                           </span>
                         )}
                         <span>•</span>
-                        <span className="text-slate-600 font-medium">{wal?.name || 'Wallet'}</span>
+                        <span className="text-slate-600 font-medium">
+                          {isTransfer && toWal ? `${wal?.name || 'Wallet'} → ${toWal.name}` : (wal?.name || 'Wallet')}
+                        </span>
                         {tx.note && (
                           <>
                             <span>•</span>
@@ -239,10 +245,10 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                     <div className="text-right">
                       <div
                         className={`text-base font-black ${
-                          isIncome ? 'text-emerald-600' : 'text-slate-900'
+                          isIncome ? 'text-emerald-600' : isTransfer ? 'text-indigo-600' : 'text-slate-900'
                         }`}
                       >
-                        {isIncome ? '+' : '-'}{currencySymbol}{tx.amount.toFixed(2)}
+                        {isIncome ? '+' : isTransfer ? '⇄ ' : '-'}{currencySymbol}{tx.amount.toFixed(2)}
                       </div>
                       <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
                         {tx.type}
