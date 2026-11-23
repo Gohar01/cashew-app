@@ -82,8 +82,6 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
   const toWallet = wallets.find((w) => w.id === toWalletId);
   const debtType = getDebtTransferType(fromWallet, toWallet);
 
-  if (!isOpen) return null;
-
   const filteredCategories = categories.filter((c) => c.type === (type === 'income' ? 'income' : 'expense'));
   const selectedCategory = categories.find((c) => c.id === categoryId) || filteredCategories[0];
 
@@ -175,6 +173,8 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
     });
     onClose();
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-200">
