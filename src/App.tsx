@@ -6,6 +6,12 @@ import {
   fetchAllFromSupabase,
   dbUpsertTransaction,
   dbDeleteTransaction,
+  dbSoftDeleteTransaction,
+  dbRestoreTransaction,
+  dbPermanentDeleteTransaction,
+  dbFetchTrashTransactions,
+  dbEmptyTrash,
+  dbAutoPurgeOldTrash,
   dbUpsertWallets,
   subscribeToRealtimeChanges,
 } from './utils/supabase';
@@ -27,6 +33,8 @@ import { ImportExportModal } from './components/ImportExportModal';
 import { TransactionModal } from './components/TransactionModal';
 import { BudgetModal } from './components/BudgetModal';
 import { WalletModal } from './components/WalletModal';
+import { TrashModal } from './components/TrashModal';
+import { RotateCcw, Trash2, X } from 'lucide-react';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
@@ -36,13 +44,20 @@ export function App() {
   const [budgets, setBudgets] = useState<Budget[]>(() => Storage.getBudgets());
   const [settings, setSettings] = useState<AppSettings>(() => Storage.getSettings());
 
-  // Modals state
+  // Modals & Trash state
   const [isTxModalOpen, setIsTxModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [initialTxWalletId, setInitialTxWalletId] = useState<string | undefined>(undefined);
   const [selectedWalletFilter, setSelectedWalletFilter] = useState<string>('all');
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
+  const [isTrashOpen, setIsTrashOpen] = useState(false);
+  const [trashTransactions, setTrashTransactions] = useState<Transaction[]>([]);
+  const [toastNotification, setToastNotification] = useState<{
+    tx: Transaction;
+    message: string;
+  } | null>(null);
+  const toastTimeoutRef = useRef<any>(null);
 
   // Save to storage on change
   useEffect(() => {
@@ -70,12 +85,22 @@ export function App() {
     let isMounted = true;
 
     const syncCloudData = async () => {
-      const cloudData = await fetchAllFromSupabase();
+      // Auto-purge items in trash older than 30 days
+      dbAutoPurgeOldTrash(30);
+
+      const [cloudData, trashData] = await Promise.all([
+        fetchAllFromSupabase(),
+        dbFetchTrashTransactions(),
+      ]);
+
       if (cloudData && isMounted) {
         if (cloudData.wallets.length > 0) setWallets(cloudData.wallets);
         if (cloudData.categories.length > 0) setCategories(cloudData.categories);
         if (cloudData.budgets.length > 0) setBudgets(cloudData.budgets);
         if (cloudData.transactions.length > 0) setTransactions(cloudData.transactions);
+      }
+      if (trashData && isMounted) {
+        setTrashTransactions(trashData);
       }
     };
 
@@ -157,13 +182,20 @@ export function App() {
     }
   };
 
+  // Soft delete transaction (moves to Recycle Bin / Trash)
   const handleDeleteTransaction = (id: string) => {
     const tx = transactions.find((t) => t.id === id);
     if (!tx) return;
 
-    dbDeleteTransaction(id);
+    const deletedAt = new Date().toISOString();
+    const deletedTx: Transaction = { ...tx, deletedAt };
 
-    // Reverse balance adjustment
+    // 1. Move to Trash state & call Supabase soft delete
+    setTrashTransactions((prev) => [deletedTx, ...prev.filter((t) => t.id !== id)]);
+    setTransactions((prev) => prev.filter((t) => t.id !== id));
+    dbSoftDeleteTransaction(id);
+
+    // 2. Reverse wallet balance adjustment
     setWallets((prev) => {
       const next = prev.map((w) => {
         const delta = getTxBalanceDelta(tx, w.id, prev);
@@ -176,7 +208,58 @@ export function App() {
       return next;
     });
 
-    setTransactions((prev) => prev.filter((t) => t.id !== id));
+    // 3. Show undo toast notification
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    setToastNotification({
+      tx: deletedTx,
+      message: `"${tx.title}" moved to Trash (auto-deletes in 30 days)`,
+    });
+    toastTimeoutRef.current = setTimeout(() => {
+      setToastNotification(null);
+    }, 6000);
+  };
+
+  // Restore transaction from Trash
+  const handleRestoreTransaction = (id: string) => {
+    const tx = trashTransactions.find((t) => t.id === id);
+    if (!tx) return;
+
+    const restoredTx: Transaction = { ...tx, deletedAt: null };
+
+    // 1. Move from Trash back to active transactions & Supabase restore
+    setTrashTransactions((prev) => prev.filter((t) => t.id !== id));
+    setTransactions((prev) => [restoredTx, ...prev]);
+    dbRestoreTransaction(id);
+
+    // 2. Re-apply wallet balance
+    setWallets((prev) => {
+      const next = prev.map((w) => {
+        const delta = getTxBalanceDelta(restoredTx, w.id, prev);
+        if (delta !== 0) {
+          return { ...w, balance: Math.round((w.balance + delta) * 100) / 100 };
+        }
+        return w;
+      });
+      dbUpsertWallets(next);
+      return next;
+    });
+
+    // Clear toast if it was this transaction
+    if (toastNotification?.tx.id === id) {
+      setToastNotification(null);
+    }
+  };
+
+  // Permanently delete immediately from Trash
+  const handlePermanentDeleteTransaction = (id: string) => {
+    setTrashTransactions((prev) => prev.filter((t) => t.id !== id));
+    dbPermanentDeleteTransaction(id);
+  };
+
+  // Empty Trash (permanently wipe all)
+  const handleEmptyTrash = () => {
+    setTrashTransactions([]);
+    dbEmptyTrash();
   };
 
   const handleApplyImport = (
@@ -222,6 +305,8 @@ export function App() {
         }}
         totalBalance={totalBalance}
         currencySymbol={settings.currencySymbol}
+        onOpenTrash={() => setIsTrashOpen(true)}
+        trashCount={trashTransactions.length}
       />
 
       {/* Main Content Area */}
@@ -269,6 +354,8 @@ export function App() {
                 setIsTxModalOpen(true);
               }}
               onDeleteTransaction={handleDeleteTransaction}
+              onOpenTrash={() => setIsTrashOpen(true)}
+              trashCount={trashTransactions.length}
             />
           )}
 
@@ -371,6 +458,53 @@ export function App() {
         onSave={(newWallet) => setWallets((prev) => [...prev, newWallet])}
         currencySymbol={settings.currencySymbol}
       />
+
+      {/* Recycle Bin / Trash Modal */}
+      <TrashModal
+        isOpen={isTrashOpen}
+        onClose={() => setIsTrashOpen(false)}
+        trashTransactions={trashTransactions}
+        categories={categories}
+        wallets={wallets}
+        settings={settings}
+        onRestoreTransaction={handleRestoreTransaction}
+        onPermanentDeleteTransaction={handlePermanentDeleteTransaction}
+        onEmptyTrash={handleEmptyTrash}
+      />
+
+      {/* Undo Toast Notification */}
+      {toastNotification && (
+        <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-md w-[92%] sm:w-auto bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-2xl border border-slate-700/60 flex items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-4 duration-200">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <Trash2 size={16} className="text-rose-400 shrink-0" />
+            <span className="text-xs font-medium truncate">{toastNotification.message}</span>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              onClick={() => handleRestoreTransaction(toastNotification.tx.id)}
+              className="flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-2.5 py-1 rounded-xl transition-all cursor-pointer shadow-xs"
+            >
+              <RotateCcw size={12} strokeWidth={2.5} />
+              <span>Undo</span>
+            </button>
+            <button
+              onClick={() => {
+                setToastNotification(null);
+                setIsTrashOpen(true);
+              }}
+              className="text-xs text-slate-300 hover:text-white px-2 py-1 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+            >
+              Trash
+            </button>
+            <button
+              onClick={() => setToastNotification(null)}
+              className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -36,6 +36,7 @@ export interface Transaction {
   note?: string;
   createdAt: number;
   isDebtSettlement?: boolean; // True if this transfer is a debt / lent settlement
+  deletedAt?: string | null; // ISO timestamp when moved to trash
 }
 
 export interface Budget {

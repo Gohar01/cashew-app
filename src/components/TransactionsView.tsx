@@ -21,6 +21,8 @@ interface TransactionsViewProps {
   onDeleteTransaction: (id: string) => void;
   selectedWallet?: string;
   onSelectWallet?: (walletId: string) => void;
+  onOpenTrash?: () => void;
+  trashCount?: number;
 }
 
 export const TransactionsView: React.FC<TransactionsViewProps> = ({
@@ -33,6 +35,8 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
   onDeleteTransaction,
   selectedWallet,
   onSelectWallet,
+  onOpenTrash,
+  trashCount = 0,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState<string>('all');
@@ -99,14 +103,33 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
             />
           </div>
 
-          {/* Add Button */}
-          <button
-            onClick={onOpenAddModal}
-            className="flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm px-4 py-2.5 rounded-xl shadow-xs transition-all cursor-pointer shrink-0"
-          >
-            <Plus size={16} strokeWidth={2.5} />
-            <span>Add Transaction</span>
-          </button>
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2 shrink-0">
+            {onOpenTrash && (
+              <button
+                onClick={onOpenTrash}
+                className="flex items-center justify-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm px-3 sm:px-3.5 py-2.5 rounded-xl transition-all cursor-pointer border border-slate-200/60"
+                title="View Recycle Bin / Trash"
+              >
+                <Trash2 size={15} className="text-slate-500" />
+                <span className="hidden xs:inline">Trash</span>
+                {trashCount !== undefined && trashCount > 0 && (
+                  <span className="bg-rose-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
+                    {trashCount}
+                  </span>
+                )}
+              </button>
+            )}
+
+            {/* Add Button */}
+            <button
+              onClick={onOpenAddModal}
+              className="flex items-center justify-center gap-1.5 sm:gap-2 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs sm:text-sm px-3.5 sm:px-4 py-2.5 rounded-xl shadow-xs transition-all cursor-pointer shrink-0"
+            >
+              <Plus size={16} strokeWidth={2.5} />
+              <span>Add Transaction</span>
+            </button>
+          </div>
         </div>
 
         {/* Filters Row */}

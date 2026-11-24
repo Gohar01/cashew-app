@@ -38,6 +38,7 @@ export async function fetchAllFromSupabase(): Promise<{
       const { data: chunk, error: tErr } = await supabase
         .from('transactions')
         .select('*')
+        .is('deleted_at', null)
         .order('created_at', { ascending: false })
         .range(page * pageSize, (page + 1) * pageSize - 1);
 
@@ -96,6 +97,7 @@ export async function fetchAllFromSupabase(): Promise<{
       time: row.time || undefined,
       note: row.note || undefined,
       createdAt: Number(row.created_at),
+      deletedAt: row.deleted_at || undefined,
     }));
 
     return { wallets, categories, budgets, transactions };
@@ -120,18 +122,107 @@ export async function dbUpsertTransaction(tx: Transaction): Promise<void> {
       time: tx.time || null,
       note: tx.note || null,
       created_at: tx.createdAt || Date.now(),
+      deleted_at: tx.deletedAt || null,
     });
   } catch (err) {
     console.error('dbUpsertTransaction error:', err);
   }
 }
 
-// Delete transaction
-export async function dbDeleteTransaction(id: string): Promise<void> {
+// Soft-delete transaction (moves to Trash)
+export async function dbSoftDeleteTransaction(id: string): Promise<void> {
+  try {
+    await supabase
+      .from('transactions')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', id);
+  } catch (err) {
+    console.error('dbSoftDeleteTransaction error:', err);
+  }
+}
+
+// Restore transaction from Trash
+export async function dbRestoreTransaction(id: string): Promise<void> {
+  try {
+    await supabase
+      .from('transactions')
+      .update({ deleted_at: null })
+      .eq('id', id);
+  } catch (err) {
+    console.error('dbRestoreTransaction error:', err);
+  }
+}
+
+// Permanently delete transaction immediately from Trash
+export async function dbPermanentDeleteTransaction(id: string): Promise<void> {
   try {
     await supabase.from('transactions').delete().eq('id', id);
   } catch (err) {
-    console.error('dbDeleteTransaction error:', err);
+    console.error('dbPermanentDeleteTransaction error:', err);
+  }
+}
+
+// Legacy alias for backwards compatibility
+export const dbDeleteTransaction = dbSoftDeleteTransaction;
+
+// Fetch all transactions currently in Trash
+export async function dbFetchTrashTransactions(): Promise<Transaction[]> {
+  try {
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .not('deleted_at', 'is', null)
+      .order('deleted_at', { ascending: false });
+
+    if (error || !data) return [];
+    return data.map((row: any) => ({
+      id: row.id,
+      title: row.title,
+      amount: Number(row.amount),
+      type: row.type,
+      categoryId: row.category_id,
+      walletId: row.wallet_id,
+      toWalletId: row.to_wallet_id || undefined,
+      date: row.date,
+      time: row.time || undefined,
+      note: row.note || undefined,
+      createdAt: Number(row.created_at),
+      deletedAt: row.deleted_at || undefined,
+    }));
+  } catch (err) {
+    console.error('dbFetchTrashTransactions error:', err);
+    return [];
+  }
+}
+
+// Empty Trash (permanently wipe all deleted transactions)
+export async function dbEmptyTrash(): Promise<void> {
+  try {
+    await supabase.from('transactions').delete().not('deleted_at', 'is', null);
+  } catch (err) {
+    console.error('dbEmptyTrash error:', err);
+  }
+}
+
+// Auto-purge transactions that have been in Trash longer than retentionDays (default 30 days)
+export async function dbAutoPurgeOldTrash(retentionDays = 30): Promise<number> {
+  try {
+    const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000).toISOString();
+    const { data, error } = await supabase
+      .from('transactions')
+      .delete()
+      .not('deleted_at', 'is', null)
+      .lt('deleted_at', cutoff)
+      .select('id');
+
+    if (error) {
+      console.warn('Auto-purge trash notice:', error);
+      return 0;
+    }
+    return data?.length || 0;
+  } catch (err) {
+    console.error('dbAutoPurgeOldTrash error:', err);
+    return 0;
   }
 }
 
