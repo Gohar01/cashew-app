@@ -79,9 +79,16 @@ export const CASHEW_CATEGORIES: Category[] = [
     "type": "expense"
   },
   {
+    "id": "cat-bike-fuel",
+    "name": "Bike Fuel",
+    "icon": "Bike",
+    "color": "#0284c7",
+    "type": "expense"
+  },
+  {
     "id": "cat-fuel",
     "name": "Fuel",
-    "icon": "Tag",
+    "icon": "Fuel",
     "color": "#3f51b5",
     "type": "expense"
   },
@@ -1030,7 +1037,7 @@ export const CASHEW_BUDGETS: Budget[] = [
     id: 'bud-fuel',
     name: 'Fuel & Transportation',
     amount: 15000,
-    categoryIds: ['cat-fuel', 'cat-transportation'].filter(Boolean),
+    categoryIds: ['cat-fuel', 'cat-bike-fuel', 'cat-transportation'].filter(Boolean),
     period: 'monthly',
     startDate: '2026-11-01'
   },
