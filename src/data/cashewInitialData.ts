@@ -379,7 +379,7 @@ export const CASHEW_WALLETS: Wallet[] = [
   {
     "id": "wal-wife",
     "name": "Wife",
-    "balance": 820871.69,
+    "balance": 817911.69,
     "currency": "PKR",
     "color": "#16a34a",
     "icon": "Wallet",
