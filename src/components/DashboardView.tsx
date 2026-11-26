@@ -21,6 +21,7 @@ interface DashboardViewProps {
   currencySymbol: string;
   onNavigateTab: (tab: ActiveTab) => void;
   onOpenAddModal: () => void;
+  onEditTransaction?: (tx: Transaction) => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -31,6 +32,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   currencySymbol,
   onNavigateTab,
   onOpenAddModal,
+  onEditTransaction,
 }) => {
   // Calculations
   const totalBalance = wallets.reduce((acc, w) => acc + w.balance, 0);
@@ -326,7 +328,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               const isLoanRepaid = isTransfer && Boolean(tx.note?.includes('[Debt Settlement]') || (isDebtAccount(wal) && !isDebtAccount(toWal)));
 
               return (
-                <div key={tx.id} className="py-3.5 flex items-center justify-between gap-3 first:pt-0 last:pb-0">
+                <div
+                  key={tx.id}
+                  onClick={() => onEditTransaction && onEditTransaction(tx)}
+                  className={`py-3.5 flex items-center justify-between gap-3 first:pt-0 last:pb-0 ${
+                    onEditTransaction ? 'cursor-pointer hover:bg-slate-50/80 -mx-2 px-2 rounded-xl transition-colors' : ''
+                  }`}
+                >
                   <div className="flex items-center gap-3 min-w-0">
                     <CategoryIcon
                       name={isLoanGiven || isLoanRepaid ? 'Handshake' : isTransfer ? 'ArrowRightLeft' : (cat?.icon || 'Tag')}

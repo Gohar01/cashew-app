@@ -228,7 +228,8 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
               return (
                 <div
                   key={tx.id}
-                  className="p-4 sm:px-6 hover:bg-slate-50/70 transition-colors flex items-center justify-between gap-3 group"
+                  onClick={() => onEditTransaction(tx)}
+                  className="p-4 sm:px-6 hover:bg-slate-50/80 transition-colors flex items-center justify-between gap-3 group cursor-pointer"
                 >
                   <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                     <CategoryIcon
@@ -323,18 +324,29 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                       </div>
                     </div>
 
-                    {/* Action buttons on hover */}
-                    <div className="flex items-center gap-1 opacity-70 group-hover:opacity-100 transition-opacity">
+                    {/* Action buttons */}
+                    <div
+                      className="flex items-center gap-1 opacity-80 sm:opacity-70 group-hover:opacity-100 transition-opacity"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <button
-                        onClick={() => onEditTransaction(tx)}
-                        className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEditTransaction(tx);
+                        }}
+                        className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-colors cursor-pointer"
                         title="Edit transaction"
                       >
                         <Edit2 size={15} />
                       </button>
                       <button
-                        onClick={() => onDeleteTransaction(tx.id)}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteTransaction(tx.id);
+                        }}
+                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
                         title="Delete transaction"
                       >
                         <Trash2 size={15} />

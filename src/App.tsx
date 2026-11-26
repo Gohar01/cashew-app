@@ -333,6 +333,10 @@ export function App() {
                 setEditingTransaction(null);
                 setIsTxModalOpen(true);
               }}
+              onEditTransaction={(tx) => {
+                setEditingTransaction(tx);
+                setIsTxModalOpen(true);
+              }}
             />
           )}
 

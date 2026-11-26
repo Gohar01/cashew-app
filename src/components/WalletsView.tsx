@@ -1015,7 +1015,13 @@ export const WalletsView: React.FC<WalletsViewProps> = ({
                     return (
                       <div
                         key={tx.id}
-                        className="py-3 flex items-start justify-between gap-3 group hover:bg-slate-50/80 -mx-2 px-2 rounded-xl transition-colors"
+                        onClick={() => {
+                          if (onEditTransaction) {
+                            setSelectedWalletId(null);
+                            onEditTransaction(tx);
+                          }
+                        }}
+                        className="py-3 flex items-start justify-between gap-3 group hover:bg-slate-50/80 -mx-2 px-2 rounded-xl transition-colors cursor-pointer"
                       >
                         <div className="flex items-start gap-3 min-w-0">
                           <CategoryIcon
@@ -1087,10 +1093,15 @@ export const WalletsView: React.FC<WalletsViewProps> = ({
                           </div>
 
                           {/* Hover Actions: Edit & Delete */}
-                          <div className="flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div
+                            className="flex items-center gap-1 mt-1 opacity-80 sm:opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             {onEditTransaction && (
                               <button
-                                onClick={() => {
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
                                   setSelectedWalletId(null);
                                   onEditTransaction(tx);
                                 }}
@@ -1102,7 +1113,11 @@ export const WalletsView: React.FC<WalletsViewProps> = ({
                             )}
                             {onDeleteTransaction && (
                               <button
-                                onClick={() => onDeleteTransaction(tx.id)}
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onDeleteTransaction(tx.id);
+                                }}
                                 className="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                                 title="Delete transaction"
                               >
