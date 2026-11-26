@@ -13,6 +13,7 @@ const STORAGE_KEYS = {
   TRANSACTIONS: 'cashew_transactions_v11',
   BUDGETS: 'cashew_budgets_v11',
   SETTINGS: 'cashew_settings_v11',
+  TRASH: 'cashew_trash_v11',
 };
 
 export function loadStoredData<T>(key: string, fallback: T): T {
@@ -99,11 +100,15 @@ export const Storage = {
   getSettings: () => loadStoredData<AppSettings>(STORAGE_KEYS.SETTINGS, DEFAULT_SETTINGS),
   saveSettings: (settings: AppSettings) => saveStoredData(STORAGE_KEYS.SETTINGS, settings),
 
+  getTrashTransactions: () => loadStoredData<Transaction[]>(STORAGE_KEYS.TRASH, []),
+  saveTrashTransactions: (txs: Transaction[]) => saveStoredData(STORAGE_KEYS.TRASH, txs),
+
   resetAll: () => {
     localStorage.removeItem(STORAGE_KEYS.CATEGORIES);
     localStorage.removeItem(STORAGE_KEYS.WALLETS);
     localStorage.removeItem(STORAGE_KEYS.TRANSACTIONS);
     localStorage.removeItem(STORAGE_KEYS.BUDGETS);
     localStorage.removeItem(STORAGE_KEYS.SETTINGS);
+    localStorage.removeItem(STORAGE_KEYS.TRASH);
   },
 };

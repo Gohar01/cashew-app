@@ -14,6 +14,10 @@ import {
   dbAutoPurgeOldTrash,
   dbUpsertWallets,
   subscribeToRealtimeChanges,
+  mapRowToTransaction,
+  mapRowToWallet,
+  mapRowToCategory,
+  mapRowToBudget,
 } from './utils/supabase';
 import {
   DEFAULT_CATEGORIES,
@@ -52,12 +56,17 @@ export function App() {
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
   const [isTrashOpen, setIsTrashOpen] = useState(false);
-  const [trashTransactions, setTrashTransactions] = useState<Transaction[]>([]);
+  const [trashTransactions, setTrashTransactions] = useState<Transaction[]>(() => Storage.getTrashTransactions());
   const [toastNotification, setToastNotification] = useState<{
     tx: Transaction;
     message: string;
   } | null>(null);
   const toastTimeoutRef = useRef<any>(null);
+
+  // Track local mutations so our client's own optimistic actions are not overridden or delayed
+  const localTxMutationsRef = useRef<Map<string, { action: 'delete' | 'restore' | 'save' | 'purge'; timestamp: number }>>(new Map());
+  const localWalletMutationRef = useRef<number>(0);
+  const isSyncingRef = useRef(false);
 
   // Save to storage on change
   useEffect(() => {
@@ -73,6 +82,10 @@ export function App() {
   }, [transactions]);
 
   useEffect(() => {
+    Storage.saveTrashTransactions(trashTransactions);
+  }, [trashTransactions]);
+
+  useEffect(() => {
     Storage.saveBudgets(budgets);
   }, [budgets]);
 
@@ -85,30 +98,150 @@ export function App() {
     let isMounted = true;
 
     const syncCloudData = async () => {
-      // Auto-purge items in trash older than 30 days
-      dbAutoPurgeOldTrash(30);
+      if (isSyncingRef.current) return;
+      isSyncingRef.current = true;
+      try {
+        // Auto-purge items in trash older than 30 days
+        dbAutoPurgeOldTrash(30);
 
-      const [cloudData, trashData] = await Promise.all([
-        fetchAllFromSupabase(),
-        dbFetchTrashTransactions(),
-      ]);
+        const [cloudData, trashData] = await Promise.all([
+          fetchAllFromSupabase(),
+          dbFetchTrashTransactions(),
+        ]);
 
-      if (cloudData && isMounted) {
-        if (cloudData.wallets.length > 0) setWallets(cloudData.wallets);
-        if (cloudData.categories.length > 0) setCategories(cloudData.categories);
-        if (cloudData.budgets.length > 0) setBudgets(cloudData.budgets);
-        if (cloudData.transactions.length > 0) setTransactions(cloudData.transactions);
-      }
-      if (trashData && isMounted) {
-        setTrashTransactions(trashData);
+        if (!isMounted) return;
+
+        if (cloudData) {
+          if (cloudData.wallets.length > 0 && Date.now() - localWalletMutationRef.current > 5000) {
+            setWallets(cloudData.wallets);
+          }
+          if (cloudData.categories.length > 0) setCategories(cloudData.categories);
+          if (cloudData.budgets.length > 0) setBudgets(cloudData.budgets);
+
+          if (cloudData.transactions.length > 0) {
+            setTransactions((prevLocal) => {
+              const now = Date.now();
+              const recentDeletedOrPurged = new Set(
+                Array.from(localTxMutationsRef.current.entries())
+                  .filter(([_, m]) => (m.action === 'delete' || m.action === 'purge') && now - m.timestamp < 15000)
+                  .map(([id]) => id)
+              );
+
+              // Server transactions excluding any that we locally deleted recently
+              let merged = cloudData.transactions.filter((tx) => !recentDeletedOrPurged.has(tx.id));
+
+              // Ensure any recently restored or created transactions remain
+              for (const localTx of prevLocal) {
+                const mutation = localTxMutationsRef.current.get(localTx.id);
+                if (mutation && (mutation.action === 'restore' || mutation.action === 'save') && now - mutation.timestamp < 15000) {
+                  if (!merged.some((m) => m.id === localTx.id)) {
+                    merged.unshift(localTx);
+                  }
+                }
+              }
+              return merged;
+            });
+          }
+        }
+
+        if (trashData) {
+          setTrashTransactions((prevTrash) => {
+            const now = Date.now();
+            const recentRestoredOrPurged = new Set(
+              Array.from(localTxMutationsRef.current.entries())
+                .filter(([_, m]) => (m.action === 'restore' || m.action === 'purge') && now - m.timestamp < 15000)
+                .map(([id]) => id)
+            );
+
+            let mergedTrash = trashData.filter((tx) => !recentRestoredOrPurged.has(tx.id));
+
+            // Ensure any recently deleted transactions remain in trash
+            for (const localTx of prevTrash) {
+              const mutation = localTxMutationsRef.current.get(localTx.id);
+              if (mutation && mutation.action === 'delete' && now - mutation.timestamp < 15000) {
+                if (!mergedTrash.some((m) => m.id === localTx.id)) {
+                  mergedTrash.unshift(localTx);
+                }
+              }
+            }
+            return mergedTrash;
+          });
+        }
+      } catch (err) {
+        console.error('Error syncing initial cloud data:', err);
+      } finally {
+        isSyncingRef.current = false;
       }
     };
 
+    // Initial load sync
     syncCloudData();
 
-    // Listen for Realtime Postgres changes from other devices (phone <-> laptop)
-    const unsubscribe = subscribeToRealtimeChanges(() => {
-      syncCloudData();
+    // Listen for Realtime Postgres changes with granular incremental updates
+    const unsubscribe = subscribeToRealtimeChanges((payload) => {
+      if (!isMounted) return;
+      const { table, eventType, new: newRow, old: oldRow } = payload;
+
+      if (table === 'transactions') {
+        const txId = (newRow?.id || oldRow?.id) as string;
+        if (!txId) return;
+
+        // If this transaction was mutated locally on this device in the last 15 seconds, ignore echo
+        const localMutation = localTxMutationsRef.current.get(txId);
+        if (localMutation && Date.now() - localMutation.timestamp < 15000) {
+          return;
+        }
+
+        if (eventType === 'DELETE') {
+          // Permanently deleted on another device
+          setTransactions((prev) => prev.filter((t) => t.id !== txId));
+          setTrashTransactions((prev) => prev.filter((t) => t.id !== txId));
+        } else if (eventType === 'INSERT' || eventType === 'UPDATE') {
+          const tx = mapRowToTransaction(newRow);
+          if (tx.deletedAt) {
+            // Soft-deleted on another device
+            setTransactions((prev) => prev.filter((t) => t.id !== tx.id));
+            setTrashTransactions((prev) => [tx, ...prev.filter((t) => t.id !== tx.id)]);
+          } else {
+            // Active or restored transaction on another device
+            setTrashTransactions((prev) => prev.filter((t) => t.id !== tx.id));
+            setTransactions((prev) => {
+              const exists = prev.some((t) => t.id === tx.id);
+              if (exists) {
+                return prev.map((t) => (t.id === tx.id ? tx : t));
+              }
+              return [tx, ...prev];
+            });
+          }
+        }
+      } else if (table === 'wallets') {
+        // If we recently updated wallets locally, ignore echo to prevent jitter
+        if (Date.now() - localWalletMutationRef.current < 5000) {
+          return;
+        }
+        if (newRow) {
+          const w = mapRowToWallet(newRow);
+          setWallets((prev) => prev.map((item) => (item.id === w.id ? { ...item, ...w } : item)));
+        }
+      } else if (table === 'categories') {
+        if (newRow) {
+          const c = mapRowToCategory(newRow);
+          setCategories((prev) => {
+            const exists = prev.some((item) => item.id === c.id);
+            if (exists) return prev.map((item) => (item.id === c.id ? c : item));
+            return [...prev, c];
+          });
+        }
+      } else if (table === 'budgets') {
+        if (newRow) {
+          const b = mapRowToBudget(newRow);
+          setBudgets((prev) => {
+            const exists = prev.some((item) => item.id === b.id);
+            if (exists) return prev.map((item) => (item.id === b.id ? b : item));
+            return [...prev, b];
+          });
+        }
+      }
     });
 
     return () => {
@@ -119,10 +252,13 @@ export function App() {
 
   // Handle transaction save (create or update)
   const handleSaveTransaction = (txData: Partial<Transaction>) => {
+    localWalletMutationRef.current = Date.now();
     if (txData.id) {
       // Update existing
       const oldTx = transactions.find((t) => t.id === txData.id);
       const updatedTx = { ...oldTx, ...txData } as Transaction;
+
+      localTxMutationsRef.current.set(txData.id, { action: 'save', timestamp: Date.now() });
 
       setTransactions((prev) =>
         prev.map((t) => (t.id === txData.id ? updatedTx : t))
@@ -164,6 +300,8 @@ export function App() {
         isDebtSettlement: txData.isDebtSettlement,
       };
 
+      localTxMutationsRef.current.set(newTx.id, { action: 'save', timestamp: Date.now() });
+
       setTransactions((prev) => [newTx, ...prev]);
       dbUpsertTransaction(newTx);
 
@@ -189,6 +327,10 @@ export function App() {
 
     const deletedAt = new Date().toISOString();
     const deletedTx: Transaction = { ...tx, deletedAt };
+
+    // Record local mutation to suppress remote echo and prevent UI bounce-back
+    localTxMutationsRef.current.set(id, { action: 'delete', timestamp: Date.now() });
+    localWalletMutationRef.current = Date.now();
 
     // 1. Move to Trash state & call Supabase soft delete
     setTrashTransactions((prev) => [deletedTx, ...prev.filter((t) => t.id !== id)]);
@@ -226,6 +368,10 @@ export function App() {
 
     const restoredTx: Transaction = { ...tx, deletedAt: null };
 
+    // Record local mutation to suppress remote echo and prevent UI delay
+    localTxMutationsRef.current.set(id, { action: 'restore', timestamp: Date.now() });
+    localWalletMutationRef.current = Date.now();
+
     // 1. Move from Trash back to active transactions & Supabase restore
     setTrashTransactions((prev) => prev.filter((t) => t.id !== id));
     setTransactions((prev) => [restoredTx, ...prev]);
@@ -252,12 +398,16 @@ export function App() {
 
   // Permanently delete immediately from Trash
   const handlePermanentDeleteTransaction = (id: string) => {
+    localTxMutationsRef.current.set(id, { action: 'purge', timestamp: Date.now() });
     setTrashTransactions((prev) => prev.filter((t) => t.id !== id));
     dbPermanentDeleteTransaction(id);
   };
 
   // Empty Trash (permanently wipe all)
   const handleEmptyTrash = () => {
+    trashTransactions.forEach((tx) => {
+      localTxMutationsRef.current.set(tx.id, { action: 'purge', timestamp: Date.now() });
+    });
     setTrashTransactions([]);
     dbEmptyTrash();
   };

@@ -6,6 +6,61 @@ export const SUPABASE_ANON_KEY = 'sb_publishable_HQgfABLoFk0hQY3ZI_pHzw_Di-jbEI8
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+export function mapRowToWallet(row: any): Wallet {
+  return {
+    id: row.id,
+    name: row.name,
+    balance: Number(row.balance),
+    currency: row.currency || 'PKR',
+    color: row.color,
+    icon: row.icon,
+    type: row.type,
+    parentWalletId: row.parent_wallet_id,
+    monthlyNote: row.monthly_note,
+    linkedAccountIds: Array.isArray(row.linked_account_ids) ? row.linked_account_ids : [],
+    reconciledBalance: row.id === 'wal-meezan' ? 74504.39 : undefined,
+  };
+}
+
+export function mapRowToCategory(row: any): Category {
+  return {
+    id: row.id,
+    name: row.name,
+    icon: row.icon,
+    color: row.color,
+    type: row.type,
+  };
+}
+
+export function mapRowToBudget(row: any): Budget {
+  return {
+    id: row.id,
+    name: row.name,
+    amount: Number(row.limit_amount),
+    period: row.period || 'monthly',
+    categoryIds: Array.isArray(row.category_ids) ? row.category_ids : [],
+    startDate: new Date().toISOString().split('T')[0],
+  };
+}
+
+export function mapRowToTransaction(row: any): Transaction {
+  return {
+    id: row.id,
+    title: row.title,
+    amount: Number(row.amount),
+    type: row.type,
+    categoryId: row.category_id,
+    walletId: row.wallet_id,
+    toWalletId: row.to_wallet_id || undefined,
+    date: row.date,
+    time: row.time || undefined,
+    note: row.note || undefined,
+    createdAt: Number(row.created_at),
+    deletedAt: row.deleted_at || undefined,
+    isBorrowedExpense: row.is_borrowed_expense ?? Boolean(row.note?.includes('[Paid on Credit]')),
+  };
+}
+
 // Fetch all core data from Supabase
 export async function fetchAllFromSupabase(): Promise<{
   wallets: Wallet[];
@@ -53,53 +108,10 @@ export async function fetchAllFromSupabase(): Promise<{
       page++;
     }
 
-    const wallets: Wallet[] = (wRes.data || []).map((row: any) => ({
-      id: row.id,
-      name: row.name,
-      balance: Number(row.balance),
-      currency: row.currency || 'PKR',
-      color: row.color,
-      icon: row.icon,
-      type: row.type,
-      parentWalletId: row.parent_wallet_id,
-      monthlyNote: row.monthly_note,
-      linkedAccountIds: Array.isArray(row.linked_account_ids) ? row.linked_account_ids : [],
-      reconciledBalance: row.id === 'wal-meezan' ? 74504.39 : undefined,
-    }));
-
-    const categories: Category[] = (cRes.data || []).map((row: any) => ({
-      id: row.id,
-      name: row.name,
-      icon: row.icon,
-      color: row.color,
-      type: row.type,
-      budget: row.budget ? Number(row.budget) : undefined,
-    }));
-
-    const budgets: Budget[] = (bRes.data || []).map((row: any) => ({
-      id: row.id,
-      name: row.name,
-      amount: Number(row.limit_amount),
-      period: row.period || 'monthly',
-      categoryIds: Array.isArray(row.category_ids) ? row.category_ids : [],
-      startDate: new Date().toISOString().split('T')[0],
-    }));
-
-    const transactions: Transaction[] = allTxRows.map((row: any) => ({
-      id: row.id,
-      title: row.title,
-      amount: Number(row.amount),
-      type: row.type,
-      categoryId: row.category_id,
-      walletId: row.wallet_id,
-      toWalletId: row.to_wallet_id || undefined,
-      date: row.date,
-      time: row.time || undefined,
-      note: row.note || undefined,
-      createdAt: Number(row.created_at),
-      deletedAt: row.deleted_at || undefined,
-      isBorrowedExpense: row.is_borrowed_expense ?? Boolean(row.note?.includes('[Paid on Credit]')),
-    }));
+    const wallets: Wallet[] = (wRes.data || []).map(mapRowToWallet);
+    const categories: Category[] = (cRes.data || []).map(mapRowToCategory);
+    const budgets: Budget[] = (bRes.data || []).map(mapRowToBudget);
+    const transactions: Transaction[] = allTxRows.map(mapRowToTransaction);
 
     return { wallets, categories, budgets, transactions };
   } catch (err) {
@@ -177,21 +189,7 @@ export async function dbFetchTrashTransactions(): Promise<Transaction[]> {
       .order('deleted_at', { ascending: false });
 
     if (error || !data) return [];
-    return data.map((row: any) => ({
-      id: row.id,
-      title: row.title,
-      amount: Number(row.amount),
-      type: row.type,
-      categoryId: row.category_id,
-      walletId: row.wallet_id,
-      toWalletId: row.to_wallet_id || undefined,
-      date: row.date,
-      time: row.time || undefined,
-      note: row.note || undefined,
-      createdAt: Number(row.created_at),
-      deletedAt: row.deleted_at || undefined,
-      isBorrowedExpense: row.is_borrowed_expense ?? Boolean(row.note?.includes('[Paid on Credit]')),
-    }));
+    return data.map(mapRowToTransaction);
   } catch (err) {
     console.error('dbFetchTrashTransactions error:', err);
     return [];
@@ -270,15 +268,22 @@ export async function dbUpsertWallets(wallets: Wallet[]): Promise<void> {
   }
 }
 
+export interface RealtimeChangePayload {
+  table: string;
+  eventType: 'INSERT' | 'UPDATE' | 'DELETE';
+  new: Record<string, any>;
+  old: Record<string, any>;
+}
+
 // Setup real-time listener for cross-device updates
-export function subscribeToRealtimeChanges(onRefresh: () => void) {
+export function subscribeToRealtimeChanges(onPayload: (payload: RealtimeChangePayload) => void) {
   const channel = supabase
     .channel('db-changes')
     .on(
       'postgres_changes',
       { event: '*', schema: 'public' },
-      () => {
-        onRefresh();
+      (payload) => {
+        onPayload(payload as unknown as RealtimeChangePayload);
       }
     )
     .subscribe();
