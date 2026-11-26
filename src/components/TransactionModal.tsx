@@ -38,6 +38,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
     return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   });
   const [note, setNote] = useState('');
+  const [isBorrowed, setIsBorrowed] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -50,6 +51,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
       setWalletId(editingTransaction.walletId);
       setToWalletId(editingTransaction.toWalletId || '');
       setIsDebtSettlement(isDebtSettlementTx(editingTransaction));
+      setIsBorrowed(Boolean(editingTransaction.isBorrowedExpense || editingTransaction.note?.includes('[Paid on Credit]')));
       setDate(editingTransaction.date);
       if (editingTransaction.createdAt) {
         const d = new Date(editingTransaction.createdAt);
@@ -71,6 +73,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
         isDebtAccount(wallets.find((w) => w.id === initialWalletId)) ||
         isDebtAccount(otherWallet)
       );
+      setIsBorrowed(false);
       setDate(new Date().toISOString().split('T')[0]);
       const now = new Date();
       setTime(`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`);
@@ -157,6 +160,12 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
       }
     }
 
+    if (type === 'expense' && isBorrowed) {
+      if (!finalNote.includes('[Paid on Credit]')) {
+        finalNote = finalNote ? `[Paid on Credit] ${finalNote}` : `[Paid on Credit] Paid by ${fromWallet?.name || 'person'}`;
+      }
+    }
+
     onSave({
       id: editingTransaction ? editingTransaction.id : undefined,
       type,
@@ -170,6 +179,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
       createdAt: createdTimestamp,
       note: finalNote,
       isDebtSettlement: type === 'transfer' ? (debtType !== 'standard') : false,
+      isBorrowedExpense: type === 'expense' ? isBorrowed : false,
     });
     onClose();
   };
@@ -371,6 +381,43 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                 placeholder="Select account..."
                 searchPlaceholder="Search account / wallet..."
               />
+            </div>
+          )}
+
+          {/* Paid By Someone Else / Borrowed Expense Toggle */}
+          {type === 'expense' && (
+            <div
+              className={`p-3 rounded-2xl border transition-all ${
+                isBorrowed
+                  ? 'bg-amber-50/90 border-amber-300 text-amber-950 shadow-xs'
+                  : 'bg-slate-50 border-slate-200/80 text-slate-700'
+              }`}
+            >
+              <label className="flex items-start gap-3 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={isBorrowed}
+                  onChange={(e) => setIsBorrowed(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded-md border-slate-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-xs font-bold text-slate-900">
+                      Paid by {fromWallet?.name || 'them'} (I have to pay back later)
+                    </span>
+                    {isBorrowed && (
+                      <span className="text-[9px] bg-amber-600 text-white font-black px-1.5 py-0.5 rounded-md uppercase tracking-wider">
+                        DEBT INCREASES
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                    {isBorrowed
+                      ? `Records expense under ${selectedCategory?.name || 'category'} AND increases what you owe ${fromWallet?.name || 'them'} (+${currencySymbol}${amount || '0'})`
+                      : `Normal expense (deducts from ${fromWallet?.name || 'wallet'})`}
+                  </p>
+                </div>
+              </label>
             </div>
           )}
 

@@ -103,6 +103,17 @@ export function isDebtSettlementTx(tx: Transaction, wallets?: Wallet[]): boolean
 }
 
 /**
+ * Returns true if this expense was paid by someone else on credit (borrowed).
+ */
+export function isBorrowedExpenseTx(tx: Transaction): boolean {
+  if (tx.isBorrowedExpense === true) return true;
+  if (tx.note && (tx.note.includes('[Paid on Credit]') || tx.note.includes('[Paid by Person]'))) {
+    return true;
+  }
+  return false;
+}
+
+/**
  * Calculates the exact balance delta this transaction has on a target wallet.
  * Positive return value means wallet balance increases.
  * Negative return value means wallet balance decreases.
@@ -160,6 +171,10 @@ export function getTxBalanceDelta(
 
   // Regular Income or Expense
   if (targetWalletId === tx.walletId) {
+    if (tx.type === 'expense' && isBorrowedExpenseTx(tx)) {
+      // Someone paid for me on credit: increases what I owe them (+amount)
+      return tx.amount;
+    }
     return tx.type === 'income' ? tx.amount : -tx.amount;
   }
 

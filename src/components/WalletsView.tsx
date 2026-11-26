@@ -27,6 +27,7 @@ import {
 import { Wallet, Transaction, Category } from '../types';
 import { CategoryIcon } from './CategoryIcon';
 import { formatTransactionTime, formatTransactionDate } from '../utils/date';
+import { isBorrowedExpenseTx } from '../utils/debt';
 
 interface WalletsViewProps {
   wallets: Wallet[];
@@ -1008,6 +1009,7 @@ export const WalletsView: React.FC<WalletsViewProps> = ({
                     const cat = categoryMap.get(tx.categoryId);
                     const wal = walletMap.get(tx.walletId);
                     const isIncome = tx.type === 'income' || tx.toWalletId === activeDetailWallet.id;
+                    const isBorrowed = isBorrowedExpenseTx(tx);
                     const isTransfer = tx.note?.includes('Transferred Balance') || !!tx.toWalletId;
 
                     return (
@@ -1023,13 +1025,18 @@ export const WalletsView: React.FC<WalletsViewProps> = ({
                             className="mt-0.5 shrink-0"
                           />
                           <div className="min-w-0">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-bold text-slate-900 text-sm truncate">
                                 {tx.title || cat?.name || 'Untitled'}
                               </span>
                               {includeLinkedSubAccounts && wal && wal.id !== activeDetailWallet.id && (
                                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 shrink-0">
                                   {wal.name}
+                                </span>
+                              )}
+                              {isBorrowed && (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 shrink-0">
+                                  🤝 Paid by them
                                 </span>
                               )}
                               {isTransfer && (
@@ -1069,10 +1076,10 @@ export const WalletsView: React.FC<WalletsViewProps> = ({
                         <div className="flex flex-col items-end shrink-0 pl-2">
                           <div
                             className={`font-black text-sm sm:text-base ${
-                              isIncome ? 'text-emerald-600' : 'text-slate-900'
+                              isIncome || isBorrowed ? 'text-emerald-600' : 'text-slate-900'
                             }`}
                           >
-                            {isIncome ? '+' : '-'}{currencySymbol}
+                            {isIncome || isBorrowed ? '+' : '-'}{currencySymbol}
                             {tx.amount.toLocaleString('en-US', {
                               minimumFractionDigits: 2,
                               maximumFractionDigits: 2,

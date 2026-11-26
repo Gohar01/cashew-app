@@ -36,6 +36,7 @@ export interface Transaction {
   note?: string;
   createdAt: number;
   isDebtSettlement?: boolean; // True if this transfer is a debt / lent settlement
+  isBorrowedExpense?: boolean; // True if expense was paid by someone else on credit (increases debt owed to person)
   deletedAt?: string | null; // ISO timestamp when moved to trash
 }
 

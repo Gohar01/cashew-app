@@ -98,6 +98,7 @@ export async function fetchAllFromSupabase(): Promise<{
       note: row.note || undefined,
       createdAt: Number(row.created_at),
       deletedAt: row.deleted_at || undefined,
+      isBorrowedExpense: row.is_borrowed_expense ?? Boolean(row.note?.includes('[Paid on Credit]')),
     }));
 
     return { wallets, categories, budgets, transactions };
@@ -123,6 +124,7 @@ export async function dbUpsertTransaction(tx: Transaction): Promise<void> {
       note: tx.note || null,
       created_at: tx.createdAt || Date.now(),
       deleted_at: tx.deletedAt || null,
+      is_borrowed_expense: Boolean(tx.isBorrowedExpense),
     });
   } catch (err) {
     console.error('dbUpsertTransaction error:', err);
@@ -188,6 +190,7 @@ export async function dbFetchTrashTransactions(): Promise<Transaction[]> {
       note: row.note || undefined,
       createdAt: Number(row.created_at),
       deletedAt: row.deleted_at || undefined,
+      isBorrowedExpense: row.is_borrowed_expense ?? Boolean(row.note?.includes('[Paid on Credit]')),
     }));
   } catch (err) {
     console.error('dbFetchTrashTransactions error:', err);

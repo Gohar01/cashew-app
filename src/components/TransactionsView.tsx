@@ -9,7 +9,7 @@ import {
 import { Transaction, Category, Wallet, TransactionType } from '../types';
 import { CategoryIcon } from './CategoryIcon';
 import { formatTransactionTime, formatTransactionDate } from '../utils/date';
-import { isDebtSettlementTx, isDebtAccount } from '../utils/debt';
+import { isDebtSettlementTx, isDebtAccount, isBorrowedExpenseTx } from '../utils/debt';
 
 interface TransactionsViewProps {
   transactions: Transaction[];
@@ -221,6 +221,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
               const toWal = tx.toWalletId ? walletMap.get(tx.toWalletId) : null;
               const isIncome = tx.type === 'income';
               const isTransfer = tx.type === 'transfer';
+              const isBorrowed = isBorrowedExpenseTx(tx);
               const isLoanGiven = isTransfer && Boolean(tx.note?.includes('[Loan Given]') || (!isDebtAccount(wal) && isDebtAccount(toWal)));
               const isLoanRepaid = isTransfer && Boolean(tx.note?.includes('[Debt Settlement]') || (isDebtAccount(wal) && !isDebtAccount(toWal)));
 
@@ -236,7 +237,7 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                       size={20}
                     />
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-bold text-slate-900 text-sm truncate">
                           {tx.title}
                         </span>
@@ -257,6 +258,11 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                             ? 'Transfer'
                             : (cat?.name || 'Category')}
                         </span>
+                        {isBorrowed && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200/80 shrink-0">
+                            🤝 Paid by {wal?.name || 'them'}
+                          </span>
+                        )}
                       </div>
                       <div className="text-xs text-slate-400 flex items-center gap-1.5 sm:gap-2 mt-1 truncate">
                         <span className="font-semibold text-slate-500">{formatTransactionDate(tx.date)}</span>
@@ -283,13 +289,37 @@ export const TransactionsView: React.FC<TransactionsViewProps> = ({
                     <div className="text-right">
                       <div
                         className={`text-base font-black ${
-                          isIncome || isLoanRepaid ? 'text-emerald-600' : isLoanGiven ? 'text-purple-600' : isTransfer ? 'text-indigo-600' : 'text-slate-900'
+                          isIncome || isLoanRepaid
+                            ? 'text-emerald-600'
+                            : isLoanGiven
+                            ? 'text-purple-600'
+                            : isBorrowed
+                            ? 'text-amber-600'
+                            : isTransfer
+                            ? 'text-indigo-600'
+                            : 'text-slate-900'
                         }`}
                       >
-                        {isIncome || isLoanRepaid ? '+' : isLoanGiven ? '-' : isTransfer ? '⇄ ' : '-'}{currencySymbol}{tx.amount.toFixed(2)}
+                        {isIncome || isLoanRepaid
+                          ? '+'
+                          : isLoanGiven
+                          ? '-'
+                          : isBorrowed
+                          ? '⏳ -'
+                          : isTransfer
+                          ? '⇄ '
+                          : '-'}
+                        {currencySymbol}
+                        {tx.amount.toFixed(2)}
                       </div>
                       <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
-                        {isLoanGiven ? 'Loan' : isLoanRepaid ? 'Repaid' : tx.type}
+                        {isLoanGiven
+                          ? 'Loan'
+                          : isLoanRepaid
+                          ? 'Repaid'
+                          : isBorrowed
+                          ? 'Payable'
+                          : tx.type}
                       </div>
                     </div>
 
