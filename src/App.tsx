@@ -3,16 +3,16 @@ import { ActiveTab, Transaction, Category, Wallet, Budget, AppSettings } from '.
 import { Storage } from './utils/storage';
 import { getTxBalanceDelta } from './utils/debt';
 import {
+  enqueueOfflineOp,
+  executeOp,
+  flushOfflineQueue,
+  getOfflineQueue,
+  OfflineOp,
+} from './utils/offlineQueue';
+import {
   fetchAllFromSupabase,
-  dbUpsertTransaction,
-  dbDeleteTransaction,
-  dbSoftDeleteTransaction,
-  dbRestoreTransaction,
-  dbPermanentDeleteTransaction,
   dbFetchTrashTransactions,
-  dbEmptyTrash,
   dbAutoPurgeOldTrash,
-  dbUpsertWallets,
   subscribeToRealtimeChanges,
   mapRowToTransaction,
   mapRowToWallet,
@@ -57,11 +57,29 @@ export function App() {
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
   const [isTrashOpen, setIsTrashOpen] = useState(false);
   const [trashTransactions, setTrashTransactions] = useState<Transaction[]>(() => Storage.getTrashTransactions());
+  const [isOnline, setIsOnline] = useState<boolean>(() =>
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
+  const [pendingSyncCount, setPendingSyncCount] = useState<number>(() => getOfflineQueue().length);
+  const [isFlushingQueue, setIsFlushingQueue] = useState<boolean>(false);
   const [toastNotification, setToastNotification] = useState<{
     tx: Transaction;
     message: string;
   } | null>(null);
   const toastTimeoutRef = useRef<any>(null);
+
+  const persistOrQueue = async (op: OfflineOp) => {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      const q = enqueueOfflineOp(op);
+      setPendingSyncCount(q.length);
+      return;
+    }
+    const ok = await executeOp(op);
+    if (!ok) {
+      const q = enqueueOfflineOp(op);
+      setPendingSyncCount(q.length);
+    }
+  };
 
   // Track local mutations so our client's own optimistic actions are not overridden or delayed
   const localTxMutationsRef = useRef<Map<string, { action: 'delete' | 'restore' | 'save' | 'purge'; timestamp: number }>>(new Map());
@@ -174,8 +192,35 @@ export function App() {
       }
     };
 
-    // Initial load sync
-    syncCloudData();
+    const flushAndSync = async () => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+      setIsFlushingQueue(true);
+      try {
+        const { remainingCount } = await flushOfflineQueue();
+        if (isMounted) setPendingSyncCount(remainingCount);
+        if (remainingCount === 0) {
+          await syncCloudData();
+        }
+      } finally {
+        if (isMounted) setIsFlushingQueue(false);
+      }
+    };
+
+    // Initial load: flush any pending offline edits before pulling cloud state
+    flushAndSync();
+
+    const handleOnline = () => {
+      if (!isMounted) return;
+      setIsOnline(true);
+      flushAndSync();
+    };
+    const handleOffline = () => {
+      if (!isMounted) return;
+      setIsOnline(false);
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
 
     // Listen for Realtime Postgres changes with granular incremental updates
     const unsubscribe = subscribeToRealtimeChanges((payload) => {
@@ -246,6 +291,8 @@ export function App() {
 
     return () => {
       isMounted = false;
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
       unsubscribe();
     };
   }, []);
@@ -264,8 +311,8 @@ export function App() {
         prev.map((t) => (t.id === txData.id ? updatedTx : t))
       );
 
-      // Persist to Supabase
-      dbUpsertTransaction(updatedTx);
+      // Persist to Supabase (or queue if offline)
+      persistOrQueue({ type: 'upsert_tx', tx: updatedTx });
 
       // Re-calculate affected wallet balances
       if (oldTx) {
@@ -278,7 +325,7 @@ export function App() {
             b += getTxBalanceDelta(updatedTx, w.id, prev);
             return { ...w, balance: Math.round(b * 100) / 100 };
           });
-          dbUpsertWallets(next);
+          persistOrQueue({ type: 'upsert_wallets', wallets: next });
           return next;
         });
       }
@@ -303,7 +350,7 @@ export function App() {
       localTxMutationsRef.current.set(newTx.id, { action: 'save', timestamp: Date.now() });
 
       setTransactions((prev) => [newTx, ...prev]);
-      dbUpsertTransaction(newTx);
+      persistOrQueue({ type: 'upsert_tx', tx: newTx });
 
       // Adjust wallet balance
       setWallets((prev) => {
@@ -314,7 +361,7 @@ export function App() {
           }
           return w;
         });
-        dbUpsertWallets(next);
+        persistOrQueue({ type: 'upsert_wallets', wallets: next });
         return next;
       });
     }
@@ -332,10 +379,10 @@ export function App() {
     localTxMutationsRef.current.set(id, { action: 'delete', timestamp: Date.now() });
     localWalletMutationRef.current = Date.now();
 
-    // 1. Move to Trash state & call Supabase soft delete
+    // 1. Move to Trash state & call Supabase soft delete (or queue if offline)
     setTrashTransactions((prev) => [deletedTx, ...prev.filter((t) => t.id !== id)]);
     setTransactions((prev) => prev.filter((t) => t.id !== id));
-    dbSoftDeleteTransaction(id);
+    persistOrQueue({ type: 'soft_delete_tx', id, deletedAt });
 
     // 2. Reverse wallet balance adjustment
     setWallets((prev) => {
@@ -346,7 +393,7 @@ export function App() {
         }
         return w;
       });
-      dbUpsertWallets(next);
+      persistOrQueue({ type: 'upsert_wallets', wallets: next });
       return next;
     });
 
@@ -372,10 +419,10 @@ export function App() {
     localTxMutationsRef.current.set(id, { action: 'restore', timestamp: Date.now() });
     localWalletMutationRef.current = Date.now();
 
-    // 1. Move from Trash back to active transactions & Supabase restore
+    // 1. Move from Trash back to active transactions & Supabase restore (or queue if offline)
     setTrashTransactions((prev) => prev.filter((t) => t.id !== id));
     setTransactions((prev) => [restoredTx, ...prev]);
-    dbRestoreTransaction(id);
+    persistOrQueue({ type: 'restore_tx', id });
 
     // 2. Re-apply wallet balance
     setWallets((prev) => {
@@ -386,7 +433,7 @@ export function App() {
         }
         return w;
       });
-      dbUpsertWallets(next);
+      persistOrQueue({ type: 'upsert_wallets', wallets: next });
       return next;
     });
 
@@ -400,7 +447,7 @@ export function App() {
   const handlePermanentDeleteTransaction = (id: string) => {
     localTxMutationsRef.current.set(id, { action: 'purge', timestamp: Date.now() });
     setTrashTransactions((prev) => prev.filter((t) => t.id !== id));
-    dbPermanentDeleteTransaction(id);
+    persistOrQueue({ type: 'permanent_delete_tx', id });
   };
 
   // Empty Trash (permanently wipe all)
@@ -409,7 +456,7 @@ export function App() {
       localTxMutationsRef.current.set(tx.id, { action: 'purge', timestamp: Date.now() });
     });
     setTrashTransactions([]);
-    dbEmptyTrash();
+    persistOrQueue({ type: 'empty_trash' });
   };
 
   const handleApplyImport = (
@@ -468,6 +515,9 @@ export function App() {
             setSettings((prev) => ({ ...prev, currency: code, currencySymbol: symbol }))
           }
           onOpenImport={() => setActiveTab('import-export')}
+          isOnline={isOnline}
+          pendingSyncCount={pendingSyncCount}
+          isSyncing={isFlushingQueue}
         />
 
         <main className="flex-1 p-4 sm:p-8 overflow-y-auto">

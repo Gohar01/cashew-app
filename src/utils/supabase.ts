@@ -121,9 +121,10 @@ export async function fetchAllFromSupabase(): Promise<{
 }
 
 // Save or update transaction
-export async function dbUpsertTransaction(tx: Transaction): Promise<void> {
+export async function dbUpsertTransaction(tx: Transaction): Promise<boolean> {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return false;
   try {
-    await supabase.from('transactions').upsert({
+    const { error } = await supabase.from('transactions').upsert({
       id: tx.id,
       title: tx.title,
       amount: tx.amount,
@@ -138,41 +139,68 @@ export async function dbUpsertTransaction(tx: Transaction): Promise<void> {
       deleted_at: tx.deletedAt || null,
       is_borrowed_expense: Boolean(tx.isBorrowedExpense),
     });
+    if (error) {
+      console.error('dbUpsertTransaction error:', error);
+      return false;
+    }
+    return true;
   } catch (err) {
     console.error('dbUpsertTransaction error:', err);
+    return false;
   }
 }
 
 // Soft-delete transaction (moves to Trash)
-export async function dbSoftDeleteTransaction(id: string): Promise<void> {
+export async function dbSoftDeleteTransaction(id: string, deletedAt?: string): Promise<boolean> {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return false;
   try {
-    await supabase
+    const { error } = await supabase
       .from('transactions')
-      .update({ deleted_at: new Date().toISOString() })
+      .update({ deleted_at: deletedAt || new Date().toISOString() })
       .eq('id', id);
+    if (error) {
+      console.error('dbSoftDeleteTransaction error:', error);
+      return false;
+    }
+    return true;
   } catch (err) {
     console.error('dbSoftDeleteTransaction error:', err);
+    return false;
   }
 }
 
 // Restore transaction from Trash
-export async function dbRestoreTransaction(id: string): Promise<void> {
+export async function dbRestoreTransaction(id: string): Promise<boolean> {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return false;
   try {
-    await supabase
+    const { error } = await supabase
       .from('transactions')
       .update({ deleted_at: null })
       .eq('id', id);
+    if (error) {
+      console.error('dbRestoreTransaction error:', error);
+      return false;
+    }
+    return true;
   } catch (err) {
     console.error('dbRestoreTransaction error:', err);
+    return false;
   }
 }
 
 // Permanently delete transaction immediately from Trash
-export async function dbPermanentDeleteTransaction(id: string): Promise<void> {
+export async function dbPermanentDeleteTransaction(id: string): Promise<boolean> {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return false;
   try {
-    await supabase.from('transactions').delete().eq('id', id);
+    const { error } = await supabase.from('transactions').delete().eq('id', id);
+    if (error) {
+      console.error('dbPermanentDeleteTransaction error:', error);
+      return false;
+    }
+    return true;
   } catch (err) {
     console.error('dbPermanentDeleteTransaction error:', err);
+    return false;
   }
 }
 
@@ -197,11 +225,18 @@ export async function dbFetchTrashTransactions(): Promise<Transaction[]> {
 }
 
 // Empty Trash (permanently wipe all deleted transactions)
-export async function dbEmptyTrash(): Promise<void> {
+export async function dbEmptyTrash(): Promise<boolean> {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return false;
   try {
-    await supabase.from('transactions').delete().not('deleted_at', 'is', null);
+    const { error } = await supabase.from('transactions').delete().not('deleted_at', 'is', null);
+    if (error) {
+      console.error('dbEmptyTrash error:', error);
+      return false;
+    }
+    return true;
   } catch (err) {
     console.error('dbEmptyTrash error:', err);
+    return false;
   }
 }
 
@@ -248,7 +283,8 @@ export async function dbUpsertWallet(w: Wallet): Promise<void> {
 }
 
 // Save multiple wallets (e.g. after balance adjustment)
-export async function dbUpsertWallets(wallets: Wallet[]): Promise<void> {
+export async function dbUpsertWallets(wallets: Wallet[]): Promise<boolean> {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return false;
   try {
     const rows = wallets.map((w) => ({
       id: w.id,
@@ -262,9 +298,15 @@ export async function dbUpsertWallets(wallets: Wallet[]): Promise<void> {
       monthly_note: w.monthlyNote || null,
       linked_account_ids: w.linkedAccountIds || [],
     }));
-    await supabase.from('wallets').upsert(rows);
+    const { error } = await supabase.from('wallets').upsert(rows);
+    if (error) {
+      console.error('dbUpsertWallets error:', error);
+      return false;
+    }
+    return true;
   } catch (err) {
     console.error('dbUpsertWallets error:', err);
+    return false;
   }
 }
 
